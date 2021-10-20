@@ -18,4 +18,3 @@
 
 void check(int ret_val, char* error_msg); /* unclutter code, check if return value < 0 (usually -1) */
 int parse_args(char** argv); /* turn passed in arguments into port and working directory */
-void * handle_client(void* p_connect_fd); /* argument is the pointer to fd index */

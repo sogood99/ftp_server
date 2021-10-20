@@ -5,7 +5,7 @@ all : server.o
 run : server.o
 	./server.o
 
-server.o : server.c utils.c
+server.o : server.c utils.c connect.c
 	gcc -pthread $^ -o $@
 
 clean:

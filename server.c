@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 /* main server file */
+#include "connect.h"
 #include "utils.h"
 
 void run_server(int port){
@@ -40,6 +41,7 @@ void run_server(int port){
     printf("Everything OK!\n");
 
     while (1){
+        /* keep on accepting connection from client */
         int conn_fd = accept(listen_fd, (SA *)&client_address, &client_length);
         getnameinfo((SA*)&client_address, client_length, client_hostname, MAXLEN,
             client_port, MAXLEN, 0);
