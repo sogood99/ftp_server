@@ -13,7 +13,10 @@ int parse_args(char** argv){
     return 8080;
 }
 
-void handle_client(int connect_fd){
+void * handle_client(void* p_connect_fd){
+    int connect_fd = *((int *) p_connect_fd);
+    free(p_connect_fd);
+
     char buffer[BUFF_SIZE];
     size_t bytes_read;
     bzero(buffer, sizeof(buffer)); /* clear buffer */
@@ -23,4 +26,5 @@ void handle_client(int connect_fd){
     }
     printf("Connection Closed\n");
     close(connect_fd);
+    return NULL;
 }

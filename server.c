@@ -44,7 +44,12 @@ void run_server(int port){
         getnameinfo((SA*)&client_address, client_length, client_hostname, MAXLEN,
             client_port, MAXLEN, 0);
         printf("Connection Established With %s:%s\n", client_hostname, client_port);
-        handle_client(conn_fd);
+
+        pthread_t conn_thread;
+        int *p_client_for_thread = malloc(sizeof(int));
+        *p_client_for_thread = conn_fd;
+        pthread_create(&conn_thread, NULL, handle_client, p_client_for_thread);
+        close(conn_fd);
     }
 
     close(listen_ret);
