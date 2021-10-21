@@ -50,8 +50,8 @@ void run_server(int port){
         pthread_t conn_thread;
         int *p_client_for_thread = malloc(sizeof(int));
         *p_client_for_thread = conn_fd;
+        // handle_client(p_client_for_thread);
         pthread_create(&conn_thread, NULL, handle_client, p_client_for_thread);
-        close(conn_fd);
     }
 
     close(listen_ret);

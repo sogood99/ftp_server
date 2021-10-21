@@ -10,6 +10,8 @@
 #include <pthread.h>
 #include <unistd.h>
 
+/* current user state */
+
 #define BUFF_SIZE 1024
 #define PORT 8080
 #define MAX_USER_QUEUE 1024
