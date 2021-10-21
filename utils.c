@@ -46,8 +46,17 @@ int isAlphabet(char c){
     return 0;
 }
 
+int isEmpty(char* string){
+    // Check if string is empty
+    if (string[0] == 0){
+        return 1;
+    }
+    return 0;
+}
+
 struct ClientRequest parse_request(char* buffer){
     // return struct ClientRequest, if in wrong format then ClientRequest has empty strings
+    // TODO, add security measures for when buffer contains verb/param > MAXLEN
     struct ClientRequest request;
     bzero(request.verb, MAXLEN);
     bzero(request.parameter, MAXLEN);
@@ -55,24 +64,30 @@ struct ClientRequest parse_request(char* buffer){
     // for security reasons, last char of buffer should == 0
     if (buffer[BUFF_SIZE-1] != 0){
         // refuse to parse
+        printf("Parser: Security Warning, Buffer Overflow, refused to parse command\n");
         return request;
     }
 
     // check suffix
     if (!isSuffix(buffer, "\015\012")){
+        printf("Parser: Client Command Wrong Suffix\n");
         return request;
     }
 
     int verb_length = 0, parameter_length = 0, index = 0;
-    
+
     while (index < BUFF_SIZE){
         if (verb_length == 0){
             // currently parsing verb
             if (buffer[index] == ' '){
                 // move onto parameter
                 verb_length = index;
-            }else if (!isAlphabet(buffer[index])){
-                // not in correct foramt, return empty struct
+            } else if (buffer[index] == '\015' || buffer[index] == '\012'){
+                // ended without parameter (fine)
+                return request;
+            } else if (!isAlphabet(buffer[index])){
+                // not in correct format, return empty struct
+                printf("Parser: Verb Not All Alphabet\n");
                 bzero(request.verb, MAXLEN);
                 bzero(request.parameter, MAXLEN);
                 return request;

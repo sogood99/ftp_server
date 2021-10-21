@@ -24,10 +24,15 @@ void * handle_client(void* p_connect_fd){
 
         // check request format validity
         struct ClientRequest request_command = parse_request(buffer);
-
-        if (current_state == Login){
-            current_state = process_login(request_command, connect_fd, current_username, current_password);
+        if (isEmpty(request_command.verb)){
+            write(connect_fd, unknown_format_msg, strlen(unknown_format_msg));
+        }else{
+            if (current_state == Login){
+                current_state = process_login(request_command, connect_fd, current_username, current_password);
+            }
         }
+        printf("out\n");
+        bzero(buffer, BUFF_SIZE);
     }
 
     // ends connection

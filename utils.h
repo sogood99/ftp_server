@@ -44,5 +44,6 @@ void parse_args(char** argv); /* turn passed in arguments into port and working 
 int isPrefix(char* string, char* prefix); /* check if prefix, true = 1, false = 0 */
 int isSuffix(char* string, char* suffix); /* check if suffix, true = 1, false = 0 */
 int isAlphabet(char c); /* check if char is ascii alphabet, true = 1, false = 0 */
+int isEmpty(char* string); /* check if string is empty, true = 1, false = 0 */
 struct ClientRequest parse_request(char* buffer); /* parse client request from buffer */
 #endif
