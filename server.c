@@ -54,7 +54,7 @@ void run_server(int port){
         pthread_create(&conn_thread, NULL, handle_client, p_client_for_thread);
     }
 
-    close(listen_ret);
+    close(listen_fd);
     return;
 }
 
