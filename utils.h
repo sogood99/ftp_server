@@ -33,6 +33,13 @@ enum ClientState{
     Exit, /* Exiting */
 };
 
+// second data connection mode (PASV or PORT)
+enum DataConnMode{
+    NOTSET,
+    PASV,
+    PORT,
+};
+
 // client request
 struct ClientRequest{
     char verb[MAXLEN];
@@ -45,5 +52,6 @@ int isPrefix(char* string, char* prefix); /* check if prefix, true = 1, false = 
 int isSuffix(char* string, char* suffix); /* check if suffix, true = 1, false = 0 */
 int isAlphabet(char c); /* check if char is ascii alphabet, true = 1, false = 0 */
 int isEmpty(char* string); /* check if string is empty, true = 1, false = 0 */
+int isEqual(char* string_a, char* string_b); /* check if string_a === string_b, true = 1, false = 0 */
 struct ClientRequest parse_request(char* buffer); /* parse client request from buffer */
 #endif

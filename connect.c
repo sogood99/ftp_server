@@ -15,6 +15,7 @@ void * handle_client(void* p_connect_fd){
     enum ClientState current_state = Login;
     char current_username[MAXLEN] = {0};
     char current_password[MAXLEN] = {0};
+    enum DataConnMode current_mode = NOTSET;
 
     char* hello_msg = "220 FTP server ready\012";
     char* unknown_format_msg = "500 Unknown Request Format\012";
@@ -32,6 +33,8 @@ void * handle_client(void* p_connect_fd){
             // run the command
             if (current_state == Login){
                 current_state = process_login(request_command, connect_fd, current_username, current_password);
+            }else if (current_state == SelectMode){
+                current_state = process_select_mode(request_command, connect_fd, &current_mode);
             }
         }
         // clear buffer
@@ -46,55 +49,74 @@ void * handle_client(void* p_connect_fd){
 
 enum ClientState process_login(struct ClientRequest request, int connect_fd, char* username, char* password){
     // Handles login, returns next state
-    if (strcmp(request.verb, "USER") == 0){
+    if (isEqual(request.verb, "USER")){
         // USER command
         if (isEmpty(request.parameter)){
-            char* resp_msg = "530 Username Unacceptable\012";
+            char* resp_msg = "530 Username Unacceptable\015\012";
             write(connect_fd, resp_msg, strlen(resp_msg));
-        }else if (strcmp(request.parameter, "anonymous") == 0){
+        }else if (isEqual(request.parameter, "anonymous")){
             // anonymous login
             strcpy(username, request.parameter);
-            char* resp_msg = "331 Guest Login OK, send email as password\012";
+            char* resp_msg = "331 Guest Login OK, send email as password\015\012";
             write(connect_fd, resp_msg, strlen(resp_msg));
         }else{
             strcpy(username, request.parameter);
-            char* resp_msg = "230 Username OK\012";
+            char* resp_msg = "331 Username OK\015\012";
             write(connect_fd, resp_msg, strlen(resp_msg));
         }
         // clears previous password
         bzero(password, MAXLEN);
-    }else if (strcmp(request.verb, "PASS") == 0){
+    }else if (isEqual(request.verb, "PASS")){
         // PASS command
         // currently only supports guest
         if (isEmpty(username)){
-            char* resp_msg = "503 Please enter username.\012";
+            char* resp_msg = "503 Please enter username.\015\012";
             write(connect_fd, resp_msg, strlen(resp_msg));
-        }else if (strcmp(username, "anonymous") == 0){
+        }else if (isEqual(username, "anonymous")){
             // anonymous login
             if (!isEmpty(request.parameter)){
                 // password not empty
                 strcpy(password, request.parameter);
-                char* resp_msg = "230 Guest login ok, access restrictions apply.\012";
+                char* resp_msg = "230 Guest login OK, access restrictions apply.\015\012";
                 write(connect_fd, resp_msg, strlen(resp_msg));
-                
                 return SelectMode;
             }else{
                 // password empty
-                char* resp_msg = "530 Username Password Combination Not Recognized.\012";
+                char* resp_msg = "530 Username Password Combination Not Recognized.\015\012";
                 write(connect_fd, resp_msg, strlen(resp_msg));
             }
         }else{
             // currently only supports anonymous login
             // TODO, write non-anonymous login
-            char* resp_msg = "530 Username Password Combination Not Recognized.\012";
+            char* resp_msg = "530 Username Password Combination Not Recognized.\015\012";
             write(connect_fd, resp_msg, strlen(resp_msg));
         }
-    }else if (strcmp(request.verb, "ACCT") == 0){
-        char* resp_msg = "502-Currently Doesnt Support ACCT\012";
+    }else if (isEqual(request.verb, "ACCT")){
+        char* resp_msg = "502 Currently Doesnt Support ACCT\015\012";
         write(connect_fd, resp_msg, strlen(resp_msg));
     }else{
-        char* resp_msg = "530-Please Login\012";
+        char* resp_msg = "530 Please Login\015\012";
         write(connect_fd, resp_msg, strlen(resp_msg));
     }
     return Login;
+}
+
+enum ClientState process_select_mode(struct ClientRequest request, int connect_fd, enum DataConnMode* mode){
+    // User starts selecting a mode ()
+    if (isEqual(request.verb, "SYST")){
+        // support SYST command
+        char* resp_msg = "215 UNIX Type: L8\015\012";
+        write(connect_fd, resp_msg, strlen(resp_msg));
+    }else if (isEqual(request.verb, "TYPE")){
+        // support TYPE command
+        if (isEqual(request.parameter, "I")){
+            char* resp_msg = "200 Type set to I.\015\012";
+            write(connect_fd, resp_msg, strlen(resp_msg));
+        }else{
+            // currently doesnt support text or other format
+            char* resp_msg = "504 Currently Only Supports Binary\015\012";
+            write(connect_fd, resp_msg, strlen(resp_msg));
+        }
+    }
+    return SelectMode;
 }

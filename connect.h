@@ -7,4 +7,5 @@
 
 void * handle_client(void* p_connect_fd); /* argument is the pointer to fd index */
 enum ClientState process_login(struct ClientRequest request, int connect_fd, char* username, char* password); /* login state */
+enum ClientState process_select_mode(struct ClientRequest request, int connect_fd, enum DataConnMode* mode); /* select mode state */
 #endif

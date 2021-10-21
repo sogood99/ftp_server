@@ -11,7 +11,7 @@ void check_error(int ret_val, char* error_msg){
 void parse_args(char** argv){
     // Changes g_current_server_params
     // TODO: take in argc values and produce dir location and port value
-    g_current_server_params.port = 8080;
+    g_current_server_params.port = DEFAULT_PORT;
 
     char* path = realpath("/tmp/", NULL);
     strcpy(g_current_server_params.root_directory, path);
@@ -49,6 +49,14 @@ int isAlphabet(char c){
 int isEmpty(char* string){
     // Check if string is empty
     if (string[0] == 0){
+        return 1;
+    }
+    return 0;
+}
+
+int isEqual(char* string_a, char* string_b){
+    // return 1 if string_a === string_b
+    if (strcmp(string_a, string_b) == 0){
         return 1;
     }
     return 0;
