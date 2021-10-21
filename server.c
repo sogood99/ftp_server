@@ -1,4 +1,4 @@
-/* main server file */
+/* main server file, primarily handles initializing server and initial connection with client */
 #include "connect.h"
 #include "utils.h"
 

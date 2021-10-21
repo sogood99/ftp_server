@@ -35,4 +35,6 @@ struct ServerParams{
 
 void check_error(int ret_val, char* error_msg); /* unclutter code, check if return value < 0 (usually error = -1) */
 void parse_args(char** argv); /* turn passed in arguments into port and working directory */
+int isPrefix(char* string, char* prefix); /* check if prefix, true = 1, false = 0 */
+int isSuffix(char* string, char* suffix); /* check if suffix, true = 1, false = 0 */
 #endif
