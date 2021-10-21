@@ -6,7 +6,7 @@ run : server.o
 	./server.o
 
 server.o : server.c utils.c connect.c
-	gcc -pthread $^ -o $@
+	gcc -Wall -pthread $^ -o $@
 
 clean:
 	find . -name \*.o -type f -delete

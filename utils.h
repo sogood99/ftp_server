@@ -30,7 +30,7 @@ enum ClientState{
     Login, /* Waiting for username and password */
     SelectMode, /* Select PORT or PASV */
     Connecting, /* Connecting to ftp client via PORT or PASV */
-    Idle, /* logged in and chosen PORT or PASV */
+    Idle, /* finished connecting to PORT or PASV, awaiting instructions */
     Transfer, /* file is transfering */
     Exit, /* Exiting */
 };

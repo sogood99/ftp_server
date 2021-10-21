@@ -82,7 +82,7 @@ struct ClientRequest parse_request(char* buffer){
         return request;
     }
 
-    int verb_length = 0, parameter_length = 0, index = 0;
+    int verb_length = 0, index = 0;
 
     while (index < BUFF_SIZE){
         if (verb_length == 0){

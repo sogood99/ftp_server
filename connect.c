@@ -91,7 +91,7 @@ enum ClientState process_login(struct ClientRequest request, int connect_fd, cha
             if (!isEmpty(request.parameter)){
                 // password not empty
                 strcpy(password, request.parameter);
-                char* resp_msg = "230 Guest login OK, access restrictions apply.\015\012";
+                char* resp_msg = "230 Guest login OK, access restrictions may apply.\015\012";
                 write(connect_fd, resp_msg, strlen(resp_msg));
                 return SelectMode;
             }else{
