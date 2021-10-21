@@ -17,12 +17,16 @@ void * handle_client(void* p_connect_fd){
     char* current_password = "";
 
     char* hello_msg = "220-FTP server ready\012";
-    write(connect_fd, hello_msg, strlen(hello_msg)+1);
+    char* unknown_format_msg = "500-Unknown Request Format\012";
+    write(connect_fd, hello_msg, strlen(hello_msg));
 
     while ((bytes_read = read(connect_fd, buffer, sizeof(buffer)) > 0)){
-        
+
+        // check request format validity
+        struct ClientRequest request_command = parse_request(buffer);
+
         if (current_state == Login){
-            current_state = process_login(buffer, connect_fd, current_username, current_password);
+            current_state = process_login(request_command, connect_fd, current_username, current_password);
         }
     }
 
@@ -32,15 +36,8 @@ void * handle_client(void* p_connect_fd){
     return NULL;
 }
 
-enum ClientState process_login(char* user_command, int connect_fd, char* username, char* password){
+enum ClientState process_login(struct ClientRequest request, int connect_fd, char* username, char* password){
     // Handles login, returns next state
     printf("processing login");
-    if (isPrefix(user_command, "USER")){
-
-    }else if(isPrefix(user_command, "PASS")){
-
-    }else{
-        // rejects other code with
-        return Login;
-    }
+    return Login;
 }

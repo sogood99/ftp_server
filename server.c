@@ -30,12 +30,13 @@ void run_server(){
     printf("Port: %d\n", g_current_server_params.port);
 
     while (1){
-        /* keep on accepting connection from client */
+        // keep on accepting connection from client
         int conn_fd = accept(listen_fd, (SA *)&client_address, &client_length);
         getnameinfo((SA*)&client_address, client_length, client_hostname, MAXLEN,
             client_port, MAXLEN, 0);
         printf("Connection Established With %s:%s\n", client_hostname, client_port);
 
+        // new thread to handle each client
         pthread_t conn_thread;
         int *p_client_for_thread = malloc(sizeof(int));
         *p_client_for_thread = conn_fd;
@@ -47,7 +48,8 @@ void run_server(){
 }
 
 int main(int argc, char** argv){
-    parse_args(argv);
-    run_server();
+    printf("%s\n%s\n", parse_request("ASSCI abfdsad\r\n").verb, parse_request("ASSCI abfdsad\r\n").parameter);
+    // parse_args(argv);
+    // run_server();
     return 0;
 }

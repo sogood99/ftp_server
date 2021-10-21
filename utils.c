@@ -37,3 +37,62 @@ int isSuffix(char* string, char* suffix){
     }
     return 0;
 }
+
+int isAlphabet(char c){
+    // Checks if suffix, returns 1 if true, 0 if false
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')){
+        return 1;
+    }
+    return 0;
+}
+
+struct ClientRequest parse_request(char* buffer){
+    // return struct ClientRequest, if in wrong format then ClientRequest has empty strings
+    struct ClientRequest request;
+    bzero(request.verb, MAXLEN);
+    bzero(request.parameter, MAXLEN);
+
+    // for security reasons, last char of buffer should == 0
+    if (buffer[BUFF_SIZE-1] != 0){
+        // refuse to parse
+        return request;
+    }
+
+    // check suffix
+    if (!isSuffix(buffer, "\015\012")){
+        return request;
+    }
+
+    int verb_length = 0, parameter_length = 0, index = 0;
+    
+    while (index < BUFF_SIZE){
+        if (verb_length == 0){
+            // currently parsing verb
+            if (buffer[index] == ' '){
+                // move onto parameter
+                verb_length = index;
+            }else if (!isAlphabet(buffer[index])){
+                // not in correct foramt, return empty struct
+                bzero(request.verb, MAXLEN);
+                bzero(request.parameter, MAXLEN);
+                return request;
+            }else{
+                request.verb[index] = buffer[index];
+            }
+        }else{
+            // currently parsing parameter
+            if (buffer[index] == '\015' || buffer[index] == '\012'){
+                return request;
+            }else{
+                request.parameter[index-verb_length-1] = buffer[index];
+            }
+        }
+        index++;
+    }
+
+    // should return before here
+    printf("Error in parsing, should not be here, please slap the person who wrote this code (me)");
+    bzero(request.verb, MAXLEN);
+    bzero(request.parameter, MAXLEN);
+    return request;
+}
