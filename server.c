@@ -26,7 +26,7 @@ void run_server(){
     check_error(listen_ret, "System: ERROR Listen Failed");
 
     printf("System: Everything OK!\nSystem: Starting Server on Root Directory= ");
-    printf("%s\n", g_current_server_params.root_directory);
+    printf("%s, ", g_current_server_params.root_directory);
     printf("Port= %d\n", g_current_server_params.port);
 
     while (1){
