@@ -10,15 +10,15 @@ void * handle_client(void* p_connect_fd){
     size_t bytes_read;
     bzero(buffer, sizeof(buffer)); /* clear buffer */
 
-    /* -------- FTP Begins -------- */
+    /* -------- FTP Code Begins -------- */
 
     enum ClientState current_state = Login;
     char current_username[MAXLEN] = {0};
     char current_password[MAXLEN] = {0};
     enum DataConnMode current_mode = NOTSET;
 
-    char* hello_msg = "220 FTP server ready\012";
-    char* unknown_format_msg = "500 Unknown Request Format\012";
+    char* hello_msg = "220 FTP server ready\015\012";
+    char* unknown_format_msg = "500 Unknown Request Format\015\012";
     write(connect_fd, hello_msg, strlen(hello_msg));
 
     while ((bytes_read = read(connect_fd, buffer, sizeof(buffer)) > 0)){
@@ -31,10 +31,21 @@ void * handle_client(void* p_connect_fd){
             write(connect_fd, unknown_format_msg, strlen(unknown_format_msg));
         }else{
             // run the command
-            if (current_state == Login){
+            switch (current_state)
+            {
+            case Login:
                 current_state = process_login(request_command, connect_fd, current_username, current_password);
-            }else if (current_state == SelectMode){
+                break;
+            case SelectMode:
                 current_state = process_select_mode(request_command, connect_fd, &current_mode);
+                break;
+            default:
+                printf("Connector: Warning, should be all the modes\n");
+                break;
+            }
+            // if exit mode
+            if (current_state == Exit){
+                break;
             }
         }
         // clear buffer
@@ -70,7 +81,7 @@ enum ClientState process_login(struct ClientRequest request, int connect_fd, cha
         // PASS command
         // currently only supports guest
         if (isEmpty(username)){
-            char* resp_msg = "503 Please enter username.\015\012";
+            char* resp_msg = "501 Please enter username.\015\012";
             write(connect_fd, resp_msg, strlen(resp_msg));
         }else if (isEqual(username, "anonymous")){
             // anonymous login
@@ -117,6 +128,17 @@ enum ClientState process_select_mode(struct ClientRequest request, int connect_f
             char* resp_msg = "504 Currently Only Supports Binary\015\012";
             write(connect_fd, resp_msg, strlen(resp_msg));
         }
+    }else if (isEqual(request.verb, "PORT")){
+
+    }else if (isEqual(request.verb, "PASV")){
+        
+    }else if (isEqual(request.verb, "QUIT")){
+        char* resp_msg = "221 Closing Connection, Goodbyte and goodbit.\015\012";
+        write(connect_fd, resp_msg, strlen(resp_msg));
+        return Exit;
+    }else{
+        char* resp_msg = "500 Unknown Command.\015\012";
+        write(connect_fd, resp_msg, strlen(resp_msg));
     }
     return SelectMode;
 }

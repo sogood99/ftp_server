@@ -28,7 +28,7 @@ struct ServerParams{
 enum ClientState{
     Login, /* Waiting for username and password */
     SelectMode, /* Select PORT or PASV */
-    Idle, /* logged in */
+    Idle, /* logged in and chosen PORT or PASV */
     Transfer, /* file is transfering */
     Exit, /* Exiting */
 };
@@ -47,11 +47,11 @@ struct ClientRequest{
 };
 
 void check_error(int ret_val, char* error_msg); /* unclutter code, check if return value < 0 (usually error = -1) */
-void parse_args(char** argv); /* turn passed in arguments into port and working directory */
+void parse_args(char** argv); /* turn passed in arguments (argv) into port and working directory */
 int isPrefix(char* string, char* prefix); /* check if prefix, true = 1, false = 0 */
 int isSuffix(char* string, char* suffix); /* check if suffix, true = 1, false = 0 */
 int isAlphabet(char c); /* check if char is ascii alphabet, true = 1, false = 0 */
 int isEmpty(char* string); /* check if string is empty, true = 1, false = 0 */
 int isEqual(char* string_a, char* string_b); /* check if string_a === string_b, true = 1, false = 0 */
-struct ClientRequest parse_request(char* buffer); /* parse client request from buffer */
+struct ClientRequest parse_request(char* buffer); /* parse client request from socket buffer */
 #endif
