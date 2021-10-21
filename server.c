@@ -16,7 +16,8 @@ void run_server(){
     check_error(socket_opt_ret, "System: ERROR Setting up Socket Option Failed");
 
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = htonl(INADDR_ANY);
+    // address.sin_addr.s_addr = htonl(INADDR_ANY);
+    address.sin_addr.s_addr = inet_addr(DEFAULT_IP);
     address.sin_port = htons(g_current_server_params.port);
 
     int bind_ret = bind(listen_fd, (SA *)&address, sizeof(address)); /* bind to port */
@@ -25,9 +26,9 @@ void run_server(){
     int listen_ret = listen(listen_fd, MAX_USER_QUEUE); /* start listening */
     check_error(listen_ret, "System: ERROR Listen Failed");
 
-    printf("System: Everything OK!\nSystem: Starting Server on Root Directory= ");
+    printf("System: Everything OK!\nSystem: Starting Server on Root Directory = ");
     printf("%s, ", g_current_server_params.root_directory);
-    printf("Port= %d\n", g_current_server_params.port);
+    printf("Port = %d\n", g_current_server_params.port);
 
     while (1){
         // keep on accepting connection from client

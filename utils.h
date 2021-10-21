@@ -14,6 +14,7 @@
 #include <unistd.h>
 
 #define BUFF_SIZE 1024
+#define DEFAULT_IP "127.0.0.1"
 #define DEFAULT_PORT 8080
 #define MAX_USER_QUEUE 1024
 #define MAXLEN 256 /* maximum length for strings like hostname, port, path etc */
@@ -28,6 +29,7 @@ struct ServerParams{
 enum ClientState{
     Login, /* Waiting for username and password */
     SelectMode, /* Select PORT or PASV */
+    Connecting, /* Connecting to ftp client via PORT or PASV */
     Idle, /* logged in and chosen PORT or PASV */
     Transfer, /* file is transfering */
     Exit, /* Exiting */

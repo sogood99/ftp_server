@@ -17,6 +17,9 @@ void * handle_client(void* p_connect_fd){
     char current_password[MAXLEN] = {0};
     enum DataConnMode current_mode = NOTSET;
 
+    int data_transfer_fd = -1; /* for the PASV and PORT socket fd */
+    int pasv_conn_fd = -1; /* for the new socket fd after passive fd sucessfully connected */
+
     char* hello_msg = "220 FTP server ready\015\012";
     char* unknown_format_msg = "500 Unknown Request Format\015\012";
     write(connect_fd, hello_msg, strlen(hello_msg));
@@ -131,7 +134,13 @@ enum ClientState process_select_mode(struct ClientRequest request, int connect_f
     }else if (isEqual(request.verb, "PORT")){
 
     }else if (isEqual(request.verb, "PASV")){
-        
+        if (!isEmpty(request.parameter)){
+            // PASV mode should have empty parameter
+            char* resp_msg = "501 PASV should have empty parameter\015\012";
+            write(connect_fd, resp_msg, strlen(resp_msg));
+        }else{
+            
+        }
     }else if (isEqual(request.verb, "QUIT")){
         char* resp_msg = "221 Closing Connection, Goodbyte and goodbit.\015\012";
         write(connect_fd, resp_msg, strlen(resp_msg));
