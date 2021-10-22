@@ -15,27 +15,23 @@ void * handle_client(void* p_connect_fd){
     enum ClientState current_state = Login;
     char current_username[MAXLEN] = {0};
     char current_password[MAXLEN] = {0};
-    enum DataConnMode current_mode = NOTSET;
+    enum DataConnMode current_mode = NOTSET; /* in the future will be PASV or PORT */
 
     int data_transfer_fd = -1; /* for the PASV and PORT socket fd */
-    int pasv_conn_fd = -1; /* for the new socket fd after passive fd sucessfully connected */
+    int pasv_conn_fd = -1; /* for the new socket fd after passive fd sucessfully connected, not used in PORT */
 
     char* hello_msg = "220 FTP server ready\015\012";
     char* unknown_format_msg = "500 Unknown Request Format\015\012";
     write(connect_fd, hello_msg, strlen(hello_msg));
 
-    while ((bytes_read = read(connect_fd, buffer, sizeof(buffer)) > 0)){
-        // keep on reading commands
-
-        // check request format validity
+    while ((bytes_read = read(connect_fd, buffer, sizeof(buffer)) > 0)){ /* keep on reading commands */
         struct ClientRequest request_command = parse_request(buffer);
-        if (isEmpty(request_command.verb)){
-            // parse error
+        if (isEmpty(request_command.verb)){ /* check command validity */
+            // empty => parse error
             write(connect_fd, unknown_format_msg, strlen(unknown_format_msg));
         }else{
-            // run the command
-            switch (current_state)
-            {
+            // run the command, depends on current state
+            switch (current_state){
             case Login:
                 current_state = process_login(request_command, connect_fd, current_username, current_password);
                 break;
@@ -43,10 +39,10 @@ void * handle_client(void* p_connect_fd){
                 current_state = process_select_mode(request_command, connect_fd, &current_mode);
                 break;
             default:
-                printf("Connector: Warning, should be all the modes\n");
+                printf("Connector: Warning, switch statement should include all the states\n");
                 break;
             }
-            // if exit mode
+            // if user quits
             if (current_state == Exit){
                 break;
             }
