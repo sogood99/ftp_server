@@ -27,6 +27,7 @@ void* handle_client(void* p_connect_fd){
     // for selectmode state
     enum DataConnMode* p_current_mode = malloc(sizeof(enum DataConnMode));
     *p_current_mode = NOTSET;
+
     pthread_mutex_t* p_current_mode_lock = malloc(sizeof(pthread_mutex_t));
     pthread_mutexattr_t* p_current_lock_attr = malloc(sizeof(pthread_mutexattr_t));
 
@@ -239,9 +240,8 @@ void * handle_data_transfer(void* p_params){
  * Handles PASV mode
  * @returns 0 if fine, -1 if error
  */
-int handle_PASV_mode(int connect_fd, enum DataConnMode* p_current_mode, pthread_mutex_t* p_transfer_mode_lock){
+int handle_PASV_mode(int connect_fd, enum DataConnMode* p_current_mode, pthread_mutex_t* p_current_mode_lock){
 
-    printf("In PASV mode\n");
     char* msg = "passive mode entered\015\012";
     write(connect_fd, msg, strlen(msg));
 
@@ -255,11 +255,11 @@ int handle_PASV_mode(int connect_fd, enum DataConnMode* p_current_mode, pthread_
     getnameinfo(&client_address, client_length, client_ap.address, MAXLEN,
         client_ap.port, MAXLEN, NI_NUMERICHOST|NI_NUMERICSERV); /* get info from socket, force numerical values */
 
-
-    printf("old: %s\n", client_ap.port);
-
     // now create a new socket to listen on that address with arbitrary port
-    int pasv_listen_fd = create_listen_socket(client_ap.address, "0");
+    // first set connection mode
+    set_connection_mode(p_current_mode_lock, p_current_mode, CREATING_SOCKET);
+    int pasv_listen_fd = create_listen_socket(client_ap.address, "0"); /* arbitrary port = 0 */
+    set_connection_mode(p_current_mode_lock, p_current_mode, PASV);
     if (pasv_listen_fd < 0){
         return -1;
     }
@@ -273,9 +273,67 @@ int handle_PASV_mode(int connect_fd, enum DataConnMode* p_current_mode, pthread_
     
     char ftp_address[BUFF_SIZE];
     bzero(ftp_address, BUFF_SIZE);
+    strcpy(ftp_address, "227 =");
 
-    to_ftp_address_port(client_ap, ftp_address);  /* host port string in the format of ftp */
-    printf("%s ftp address = %s\n", client_ap.port, ftp_address);
+    to_ftp_address_port(client_ap, ftp_address+5);  /* host port string in the format of ftp */
+    write(connect_fd, ftp_address, strlen(ftp_address));
+    write(connect_fd, "\015\012", 2);
+
+    /* ---------------- Wait for connection ---------------- */
+
+    int pasv_conn_fd = -1;
+
+    /* use asynchronous io to check for connections or if need to remove */
+    fd_set socket_set, ready_set;
+    FD_ZERO(&socket_set);
+    FD_SET(pasv_listen_fd, &socket_set);
+
+    struct timeval timeout_val = {50, 50}; /* blocks for with 50 ms granularity (while doesnt need to run every cycle) */
+    
+    while (1){
+        ready_set = socket_set;
+        size_t max_fd_set_size = 10; /* should be at most 2 sockets to listen to, 10 just in case */
+        select(max_fd_set_size, &ready_set, NULL, NULL, &timeout_val); /* TODO: check for error */
+        switch (get_connection_mode(p_current_mode_lock, p_current_mode)){
+        case PASV:
+            if (FD_ISSET(pasv_listen_fd, &ready_set)){
+                /* pasv_listen connection ready */
+                printf("Trying to connect\n");
+                pasv_conn_fd = accept(pasv_listen_fd, &client_address, &client_length);
+                
+                char* msg = "Hello From Server2\n";
+                write(pasv_conn_fd, msg, strlen(msg)+1);
+
+                FD_SET(pasv_conn_fd, &socket_set);
+                set_connection_mode(p_current_mode_lock, p_current_mode, PASV_CONNECTED);
+
+                // dont need listen socket anymore
+                FD_CLR(pasv_listen_fd, &socket_set);
+                close(pasv_listen_fd);
+                pasv_listen_fd = -1;
+            }
+            break;
+        case PORT:
+            /* error, should not be processing PORT connection */
+            printf("PASV: Error, recieved PORT command in PASV mode, check out why.\n");
+            break;
+        case CLOSING:
+            /* needs to close connection */
+            printf("Trying to close server 2\n");
+            if (pasv_listen_fd != -1){
+                close(pasv_listen_fd);
+            }
+            if (pasv_conn_fd != -1){
+                close(pasv_conn_fd);
+            }
+            set_connection_mode(p_current_mode_lock, p_current_mode, NOTSET);
+            printf("buh bye\n");
+            return 0;
+        default:
+            printf("PASV: Error should not need default");
+            break;
+        }
+    }
 
     return 0;
 }
