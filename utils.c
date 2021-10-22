@@ -1,16 +1,20 @@
 #include "utils.h"
 
+/*
+    Prints error if ret value == -1
+*/
 void check_error(int ret_val, char* error_msg){
-    // Prints error if ret value == -1
     if (ret_val < 0){
         printf("%s", error_msg);
         exit(EXIT_FAILURE);
     }
 }
 
+/*
+    Changes g_current_server_params
+    TODO: take in argc values and produce dir location and port value
+*/
 void parse_args(char** argv){
-    // Changes g_current_server_params
-    // TODO: take in argc values and produce dir location and port value
     g_current_server_params.port = DEFAULT_PORT;
 
     char* path = realpath("/tmp/", NULL);
@@ -18,17 +22,20 @@ void parse_args(char** argv){
 
     free(path); /* specified by realpath */
 }
-
+/*
+    Checks if is prefix, returns 1 if true, 0 if false
+*/
 int isPrefix(char* string, char* prefix){
-    // Checks if prefix, returns 1 if true, 0 if false
     if (strncmp(prefix, string, strlen(prefix)) == 0){
         return 1;
     }
     return 0;
 }
 
+/*
+    Checks if suffix, returns 1 if true, 0 if false
+*/
 int isSuffix(char* string, char* suffix){
-    // Checks if suffix, returns 1 if true, 0 if false
     size_t suffix_len = strlen(suffix), string_len = strlen(string);
     if (suffix_len > string_len){
         return 0;
@@ -38,33 +45,42 @@ int isSuffix(char* string, char* suffix){
     return 0;
 }
 
+/*
+    Checks if c is an ascii alphabet
+    @returns 1 if true, 0 if false
+*/
 int isAlphabet(char c){
-    // Checks if suffix, returns 1 if true, 0 if false
     if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')){
         return 1;
     }
     return 0;
 }
 
+/*
+    @return 1 if string is empty, 0 otherwise
+*/
 int isEmpty(char* string){
-    // Check if string is empty
     if (string[0] == 0){
         return 1;
     }
     return 0;
 }
 
+/*
+    @return 1 if string_a === string_b
+*/
 int isEqual(char* string_a, char* string_b){
-    // return 1 if string_a === string_b
     if (strcmp(string_a, string_b) == 0){
         return 1;
     }
     return 0;
 }
 
+/*
+    TODO, add security measures for when buffer contains verb/param > MAXLEN
+    @return struct ClientRequest, if in wrong format then ClientRequest has empty strings
+*/
 struct ClientRequest parse_request(char* buffer){
-    // return struct ClientRequest, if in wrong format then ClientRequest has empty strings
-    // TODO, add security measures for when buffer contains verb/param > MAXLEN
     struct ClientRequest request;
     bzero(request.verb, MAXLEN);
     bzero(request.parameter, MAXLEN);

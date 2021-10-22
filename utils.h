@@ -36,10 +36,13 @@ enum ClientState{
 };
 
 // second data connection mode (PASV or PORT)
+// close is used when switching sockets
 enum DataConnMode{
     NOTSET,
+    CONNECTING,
     PASV,
     PORT,
+    CLOSING,
 };
 
 // client request
@@ -49,7 +52,7 @@ struct ClientRequest{
 };
 
 void check_error(int ret_val, char* error_msg); /* unclutter code, check if return value < 0 (usually error = -1) */
-void parse_args(char** argv); /* turn passed in arguments (argv) into port and working directory */
+void parse_args(char** argv); /* turn arguments (argv) into port and working directory */
 int isPrefix(char* string, char* prefix); /* check if prefix, true = 1, false = 0 */
 int isSuffix(char* string, char* suffix); /* check if suffix, true = 1, false = 0 */
 int isAlphabet(char c); /* check if char is ascii alphabet, true = 1, false = 0 */

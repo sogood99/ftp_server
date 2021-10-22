@@ -1,6 +1,6 @@
 #include "connect.h"
 
-void * handle_client(void* p_connect_fd){
+void* handle_client(void* p_connect_fd){
     // for pthreading
     int connect_fd = *((int *) p_connect_fd);
     free(p_connect_fd);
@@ -16,9 +16,6 @@ void * handle_client(void* p_connect_fd){
     char current_username[MAXLEN] = {0};
     char current_password[MAXLEN] = {0};
     enum DataConnMode current_mode = NOTSET; /* in the future will be PASV or PORT */
-
-    int data_transfer_fd = -1; /* for the PASV and PORT socket fd */
-    int pasv_conn_fd = -1; /* for the new socket fd after passive fd sucessfully connected, not used in PORT */
 
     char* hello_msg = "220 FTP server ready\015\012";
     char* unknown_format_msg = "500 Unknown Request Format\015\012";
@@ -57,8 +54,11 @@ void * handle_client(void* p_connect_fd){
     return NULL;
 }
 
+/*
+    Handles login
+    @returns Next state (ClientState)
+*/
 enum ClientState process_login(struct ClientRequest request, int connect_fd, char* username, char* password){
-    // Handles login, returns next state
     if (isEqual(request.verb, "USER")){
         // USER command
         if (isEmpty(request.parameter)){
@@ -111,8 +111,11 @@ enum ClientState process_login(struct ClientRequest request, int connect_fd, cha
     return Login;
 }
 
+/*
+    Process commands in SelectMode state
+    @return Next state
+*/
 enum ClientState process_select_mode(struct ClientRequest request, int connect_fd, enum DataConnMode* mode){
-    // User starts selecting a mode ()
     if (isEqual(request.verb, "SYST")){
         // support SYST command
         char* resp_msg = "215 UNIX Type: L8\015\012";
@@ -128,7 +131,7 @@ enum ClientState process_select_mode(struct ClientRequest request, int connect_f
             write(connect_fd, resp_msg, strlen(resp_msg));
         }
     }else if (isEqual(request.verb, "PORT")){
-
+        
     }else if (isEqual(request.verb, "PASV")){
         if (!isEmpty(request.parameter)){
             // PASV mode should have empty parameter
