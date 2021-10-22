@@ -1,13 +1,73 @@
 #include "utils.h"
 
 /*
-    Prints error if ret value == -1
+    Creates a listening socket on port. Many thanks to CSAPP Section 11.4.
+    @param Port String for port
+    @returns listen_fd file descriptor, or -1 if error
 */
-void check_error(int ret_val, char* error_msg){
-    if (ret_val < 0){
-        printf("%s", error_msg);
-        exit(EXIT_FAILURE);
+int create_listen_socket(char* port){
+    struct addrinfo hints, *results, *p; /* hints to fine tune result list */
+    int listen_fd, opt = 1;
+
+    /* ----------- Get address linked list ----------- */
+
+    bzero(&hints, sizeof(struct addrinfo));
+
+    hints.ai_family = AF_INET; /* only IPV-4 for now */
+    hints.ai_socktype = SOL_SOCKET; /* tcp socket */
+    hints.ai_flags = AI_PASSIVE | AI_ADDRCONFIG | AI_NUMERICSERV;
+
+    getaddrinfo(NULL, port, &hints, &results);
+
+    for (p = results; p != NULL; p = p->ai_next){
+        // starts trying them
+        listen_fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+        if (listen_fd < 0){
+            printf("System: ERROR Socket Creation Failed\n");
+            continue;
+        }
+
+        // allow binding to already in use addresses
+        int socket_opt_ret = setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)); /* set options */
+        if (socket_opt_ret < 0){
+            printf("System: ERROR Setting Up Socket Option Failed\n");
+            continue;
+        }
+
+        int bind_ret = bind(listen_fd, p->ai_addr, p->ai_addrlen); /* bind to address */
+        if (bind_ret < 0) {
+            printf("System: ERROR Binding Failed\n");
+            continue;
+        }
+
+        if (bind_ret == 0){ /* bind success */
+            break;
+        }else{ /* close and go to next one */
+            close(listen_fd);
+        }
     }
+
+    freeaddrinfo(results); /* release linked list memory */
+    if (p == NULL){/* unable to bind to any <=> traversed to end */
+        return -1;
+    }
+
+    int listen_ret = listen(listen_fd, MAX_USER_QUEUE); /* start listening */
+    if (listen_ret){
+        printf("System: ERROR Listen Failed\n");
+        close(listen_fd);
+        return -1;
+    }
+    return listen_fd;
+}
+
+/*
+    Creates a connection (client) socket to hostname and port. Many thanks to CSAPP Section 11.4.
+    @param Port String for port
+    @returns conn_fd file descriptor, or -1 if error
+*/
+int create_connect_socket(char* hostname, char* port){
+    return -1;
 }
 
 /*
@@ -15,7 +75,7 @@ void check_error(int ret_val, char* error_msg){
     TODO: take in argc values and produce dir location and port value
 */
 void parse_args(char** argv){
-    g_current_server_params.port = DEFAULT_PORT;
+    strcpy(g_current_server_params.port, DEFAULT_PORT);
 
     char* path = realpath("/tmp/", NULL);
     strcpy(g_current_server_params.root_directory, path);

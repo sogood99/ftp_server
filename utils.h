@@ -15,14 +15,14 @@
 
 #define BUFF_SIZE 1024
 #define DEFAULT_IP "127.0.0.1"
-#define DEFAULT_PORT 8080
+#define DEFAULT_PORT "8080"
 #define MAX_USER_QUEUE 1024
 #define MAXLEN 256 /* maximum length for strings like hostname, port, path etc */
 #define SA struct sockaddr
 
 struct ServerParams{
     char root_directory[MAXLEN];
-    int port;
+    char port[MAXLEN];
 }g_current_server_params;
 
 // user state for each thread (client connection)
@@ -51,12 +51,13 @@ struct ClientRequest{
     char parameter[MAXLEN]; /* optional */
 };
 
-void check_error(int ret_val, char* error_msg); /* unclutter code, check if return value < 0 (usually error = -1) */
-void parse_args(char** argv); /* turn arguments (argv) into port and working directory */
-int isPrefix(char* string, char* prefix); /* check if prefix, true = 1, false = 0 */
-int isSuffix(char* string, char* suffix); /* check if suffix, true = 1, false = 0 */
-int isAlphabet(char c); /* check if char is ascii alphabet, true = 1, false = 0 */
-int isEmpty(char* string); /* check if string is empty, true = 1, false = 0 */
-int isEqual(char* string_a, char* string_b); /* check if string_a === string_b, true = 1, false = 0 */
-struct ClientRequest parse_request(char* buffer); /* parse client request from socket buffer */
+int create_listen_socket(char* port);
+int create_connect_socket(char* hostname, char* port);
+void parse_args(char** argv);
+int isPrefix(char* string, char* prefix);
+int isSuffix(char* string, char* suffix);
+int isAlphabet(char c);
+int isEmpty(char* string);
+int isEqual(char* string_a, char* string_b);
+struct ClientRequest parse_request(char* buffer);
 #endif
