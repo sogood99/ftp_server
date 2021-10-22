@@ -55,9 +55,9 @@ void* handle_client(void* p_connect_fd){
 }
 
 /*
-    Handles login
-    @returns Next state (ClientState)
-*/
+ * Handles login
+ * @returns Next state (ClientState)
+ */
 enum ClientState process_login(struct ClientRequest request, int connect_fd, char* username, char* password){
     if (isEqual(request.verb, "USER")){
         // USER command
@@ -112,9 +112,9 @@ enum ClientState process_login(struct ClientRequest request, int connect_fd, cha
 }
 
 /*
-    Process commands in SelectMode state
-    @return Next state
-*/
+ * Process commands in SelectMode state
+ * @return Next state
+ */
 enum ClientState process_select_mode(struct ClientRequest request, int connect_fd, enum DataConnMode* mode){
     if (isEqual(request.verb, "SYST")){
         // support SYST command

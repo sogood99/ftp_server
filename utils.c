@@ -1,9 +1,9 @@
 #include "utils.h"
 
 /*
-    Creates a listening socket on port. Many thanks to CSAPP Section 11.4.
-    @param Port String for port
-    @returns listen_fd file descriptor, or -1 if error
+ * Creates a listening socket on port. Many thanks to CSAPP Section 11.4.
+ * @param Port String for port
+ * @returns listen_fd file descriptor, or -1 if error
 */
 int create_listen_socket(char* port){
     struct addrinfo hints, *results, *p; /* hints to fine tune result list */
@@ -62,18 +62,18 @@ int create_listen_socket(char* port){
 }
 
 /*
-    Creates a connection (client) socket to hostname and port. Many thanks to CSAPP Section 11.4.
-    @param Port String for port
-    @returns conn_fd file descriptor, or -1 if error
+ * Creates a connection (client) socket to hostname and port. Many thanks to CSAPP Section 11.4.
+ * @param Port String for port
+ * @returns conn_fd file descriptor, or -1 if error
 */
 int create_connect_socket(char* hostname, char* port){
     return -1;
 }
 
 /*
-    Changes g_current_server_params
-    TODO: take in argc values and produce dir location and port value
-*/
+ * Changes global variable g_current_server_params
+ * TODO: take in argc values and produce dir location and port value
+ */
 void parse_args(char** argv){
     strcpy(g_current_server_params.port, DEFAULT_PORT);
 
@@ -83,8 +83,8 @@ void parse_args(char** argv){
     free(path); /* specified by realpath */
 }
 /*
-    Checks if is prefix, returns 1 if true, 0 if false
-*/
+ * Checks if is prefix, returns 1 if true, 0 if false
+ */
 int isPrefix(char* string, char* prefix){
     if (strncmp(prefix, string, strlen(prefix)) == 0){
         return 1;
@@ -93,8 +93,8 @@ int isPrefix(char* string, char* prefix){
 }
 
 /*
-    Checks if suffix, returns 1 if true, 0 if false
-*/
+ * Checks if suffix, returns 1 if true, 0 if false
+ */
 int isSuffix(char* string, char* suffix){
     size_t suffix_len = strlen(suffix), string_len = strlen(string);
     if (suffix_len > string_len){
@@ -106,9 +106,9 @@ int isSuffix(char* string, char* suffix){
 }
 
 /*
-    Checks if c is an ascii alphabet
-    @returns 1 if true, 0 if false
-*/
+ * Checks if c is an ascii alphabet
+ * @returns 1 if true, 0 if false
+ */
 int isAlphabet(char c){
     if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')){
         return 1;
@@ -117,8 +117,8 @@ int isAlphabet(char c){
 }
 
 /*
-    @return 1 if string is empty, 0 otherwise
-*/
+ * @returns 1 if string is empty, 0 otherwise
+ */
 int isEmpty(char* string){
     if (string[0] == 0){
         return 1;
@@ -127,8 +127,8 @@ int isEmpty(char* string){
 }
 
 /*
-    @return 1 if string_a === string_b
-*/
+ * @returns 1 if string_a === string_b
+ */
 int isEqual(char* string_a, char* string_b){
     if (strcmp(string_a, string_b) == 0){
         return 1;
@@ -137,9 +137,9 @@ int isEqual(char* string_a, char* string_b){
 }
 
 /*
-    TODO, add security measures for when buffer contains verb/param > MAXLEN
-    @return struct ClientRequest, if in wrong format then ClientRequest has empty strings
-*/
+ * TODO, add security measures for when buffer contains verb/param > MAXLEN
+ * @returns struct ClientRequest, if in wrong format then ClientRequest has empty strings
+ */
 struct ClientRequest parse_request(char* buffer){
     struct ClientRequest request;
     bzero(request.verb, MAXLEN);
@@ -194,4 +194,25 @@ struct ClientRequest parse_request(char* buffer){
     bzero(request.verb, MAXLEN);
     bzero(request.parameter, MAXLEN);
     return request;
+}
+
+/*
+ * Pthread safe way of reading the connection mode
+ * @param conn_lock: mutex lock on data connection mode
+ * @returns value in data connection mode
+ */
+enum DataConnMode get_connection_mode(pthread_mutex_t* conn_mode_lock, enum DataConnMode *p_conn_mode){
+    pthread_mutex_lock(conn_mode_lock);
+    enum DataConnMode value = *p_conn_mode;
+    pthread_mutex_unlock(conn_mode_lock);
+    return value;
+}
+
+/*
+ * Pthread safe way of modifying connection mode
+ */
+void set_connection_mode(pthread_mutex_t* conn_mode_lock, enum DataConnMode *p_conn_mode, enum DataConnMode value){
+    pthread_mutex_lock(conn_mode_lock);
+    *p_conn_mode = value;
+    pthread_mutex_unlock(conn_mode_lock);
 }

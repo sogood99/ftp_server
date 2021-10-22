@@ -35,14 +35,19 @@ enum ClientState{
     Exit, /* Exiting */
 };
 
-// second data connection mode (PASV or PORT)
-// close is used when switching sockets
+// data connection mode (PASV or PORT)
 enum DataConnMode{
-    NOTSET,
-    CONNECTING,
+    NOTSET, /* idle mode, next state (if exists) is connect */
+    CONNECTING, /* trying to establish a connection with listen (PASV) or connect (PORT) */
     PASV,
     PORT,
-    CLOSING,
+    CLOSING, /* closing sockets, next state is NOTSET */
+};
+
+// parameter to pass in for each PASV or PORT connection
+struct DataConnParams{
+    pthread_mutex_t* mutex_lock; /* mutex lock that is only used for lcoking conn_mode */
+    enum DataConnMode* conn_mode; /* the conn_mode used to send data from main thread (when to close, etc) */
 };
 
 // client request

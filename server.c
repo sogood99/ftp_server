@@ -2,13 +2,20 @@
 #include "connect.h"
 #include "utils.h"
 
+/* 
+* Creates a listening socket and starts assigning work to threads. 
+* Runs indefinitely.
+*/
 void run_server(){
     int listen_fd, conn_fd; /* listen fd and (client)connection fd */
     struct sockaddr server_address, client_address; /* address for listen socket and (client)connection socket */
     socklen_t server_length, client_length = sizeof(struct sockaddr_storage);
     char hostname_str[MAXLEN], port_str[MAXLEN]; // used for both server and client
 
-    listen_fd = create_listen_socket(g_current_server_params.port);
+    listen_fd = create_listen_socket(g_current_server_params.port); /* creates a listening socket */
+    if (listen_fd < 0){
+        exit(EXIT_FAILURE);
+    }
 
     /* ------------- Socket Listen Successful ------------- */
 
