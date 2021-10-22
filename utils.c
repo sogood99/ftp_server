@@ -197,25 +197,26 @@ struct ClientRequest parse_request(char* buffer){
 }
 
 /*
- * Pthread safe way of reading the connection mode
- * @param conn_lock: mutex lock on data connection mode
- * @returns value in data connection mode
+ * Pthread safe way of reading the value of pointer
+ * @param p_lock pointer to mutex lock
+ * @param p_value pointer to value
+ * @returns value in pointer
  */
-enum DataConnMode get_connection_mode(pthread_mutex_t* conn_mode_lock, enum DataConnMode *p_conn_mode){
-    pthread_mutex_lock(conn_mode_lock);
-    enum DataConnMode current_mode = *p_conn_mode;
-    pthread_mutex_unlock(conn_mode_lock);
-    return current_mode;
+enum DataConnMode get_connection_mode(pthread_mutex_t* p_lock, enum DataConnMode* p_value){
+    pthread_mutex_lock(p_lock);
+    enum DataConnMode value = *p_value;
+    pthread_mutex_unlock(p_lock);
+    return value;
 }
 
 /*
- * Pthread safe way of modifying connection mode
- * @param conn_mode_lock Mutex Lock
- * @param p_conn_mode pointer to the DataConnMode
- * @param new_mode value of next connection mode
+ * Pthread safe way of modifying value
+ * @param p_lock Mutex Lock
+ * @param p_value pointer to containing value
+ * @param new_value what to change to
  */
-void set_connection_mode(pthread_mutex_t* conn_mode_lock, enum DataConnMode *p_conn_mode, enum DataConnMode new_mode){
-    pthread_mutex_lock(conn_mode_lock);
-    *p_conn_mode = new_mode;
-    pthread_mutex_unlock(conn_mode_lock);
+void set_connection_mode(pthread_mutex_t* p_lock, enum DataConnMode* p_value, enum DataConnMode new_value){
+    pthread_mutex_lock(p_lock);
+    *p_value = new_value;
+    pthread_mutex_unlock(p_lock);
 }

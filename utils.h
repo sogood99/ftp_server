@@ -46,7 +46,7 @@ enum DataConnMode{
 
 // parameter to pass in for each PASV or PORT connection
 struct DataConnParams{
-    pthread_mutex_t* mutex_lock; /* mutex lock that is only used for lcoking conn_mode */
+    pthread_mutex_t* conn_mode_lock; /* mutex lock that is only used for locking conn_mode */
     enum DataConnMode* conn_mode; /* the conn_mode used to send data from main thread (when to close, etc) */
 };
 
