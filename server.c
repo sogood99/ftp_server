@@ -24,7 +24,7 @@ void run_server(){
     printf("System: Everything OK!\nSystem: Starting Server on Root Directory = ");
     printf("%s, ", g_current_server_params.root_directory);
 
-    getnameinfo((SA*)&server_address, server_length, hostname_str, MAXLEN,
+    getnameinfo(&server_address, server_length, hostname_str, MAXLEN,
         port_str, MAXLEN, NI_NUMERICHOST|NI_NUMERICSERV); /* get info from socket, force numerical values */
     printf("Address = %s ", hostname_str);
     printf("Port = %s\n", port_str);

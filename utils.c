@@ -117,6 +117,17 @@ int isAlphabet(char c){
 }
 
 /*
+ * Checks if c is an ascii numeric alphabet
+ * @returns 1 if true, 0 if false
+ */
+int isNumeric(char c){
+    if (c >= '0' && c <= '9'){
+        return 1;
+    }
+    return 0;
+}
+
+/*
  * @returns 1 if string is empty, 0 otherwise
  */
 int isEmpty(char* string){
@@ -219,4 +230,80 @@ void set_connection_mode(pthread_mutex_t* p_lock, enum DataConnMode* p_value, en
     pthread_mutex_lock(p_lock);
     *p_value = new_value;
     pthread_mutex_unlock(p_lock);
+}
+
+/*
+ * Parses address and port for FTP specifications
+ * TODO: Make this safer by checking port size
+ * @param buffer string of size BUFFSIZE to parse
+ * @returns parsed address and port, is empty if parse error
+ */
+struct AddressPort parse_address_port(char* buffer){
+    struct AddressPort client_in;
+    bzero(client_in.address, MAXLEN);
+    bzero(client_in.port, MAXLEN);
+
+    if (buffer[BUFF_SIZE-1] != 0){
+        // for security reasons
+        return client_in;
+    }
+
+    int index = 0, comma_count = 0, port_num = 0;
+    int incorrect_format = 0;
+    while (index < BUFF_SIZE){
+        if (buffer[index] == 0){
+            // end of string
+            break;
+        }
+        if (comma_count <= 3){
+            // still processing address
+            if (buffer[index] == ','){
+                if (index == 0 || buffer[index-1] == ','){
+                    // must have value between ,
+                    incorrect_format = 1;
+                    break;
+                }
+                if (comma_count != 3){
+                    // dont add in last comma
+                    client_in.address[index] = '.';
+                }
+                comma_count ++;
+            }else if (isNumeric(buffer[index])){
+                client_in.address[index] = buffer[index];
+            }else{
+                incorrect_format = 1;
+                break;
+            }
+            index ++;
+        }else if (comma_count <= 5){
+            // processing port
+            if (buffer[index] == ','){
+                if (buffer[index-1] == ','){
+                    // must have value between ,
+                    incorrect_format = 1;
+                    break;
+                }
+                port_num *= 256;
+                comma_count ++;
+            }else if (isNumeric(buffer[index])){
+                port_num += buffer[index]-'0';
+            }else{
+                incorrect_format = 1;
+                break;
+            }
+            index++;
+        }else{
+            // too many commas
+            incorrect_format = 1;
+            break;
+        }
+    }
+    if (incorrect_format || comma_count != 5 || (index > 0 && buffer[index-1] == ',')){ /* cannot end in comma */
+        printf("Parser: Parameter not in correct format\n");
+        bzero(client_in.address, MAXLEN);
+        bzero(client_in.port, MAXLEN);
+    }else{
+        sprintf(client_in.port, "%d", port_num);
+    }
+    return client_in;
 }

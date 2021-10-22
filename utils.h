@@ -44,16 +44,16 @@ enum DataConnMode{
     CLOSING, /* closing sockets, next state is NOTSET */
 };
 
-// parameter to pass in for each PASV or PORT connection
-struct DataConnParams{
-    pthread_mutex_t* conn_mode_lock; /* mutex lock that is only used for locking conn_mode */
-    enum DataConnMode* conn_mode; /* the conn_mode used to send data from main thread (when to close, etc) */
-};
-
 // client request
 struct ClientRequest{
     char verb[MAXLEN];
     char parameter[MAXLEN]; /* optional */
+};
+
+// struct for address port in PORT method
+struct AddressPort{
+    char address[MAXLEN];
+    char port[MAXLEN];
 };
 
 int create_listen_socket(char* port);
@@ -62,7 +62,9 @@ void parse_args(char** argv);
 int isPrefix(char* string, char* prefix);
 int isSuffix(char* string, char* suffix);
 int isAlphabet(char c);
+int isNumeric(char c);
 int isEmpty(char* string);
 int isEqual(char* string_a, char* string_b);
 struct ClientRequest parse_request(char* buffer);
+struct AddressPort parse_address_port(char* buffer);
 #endif
