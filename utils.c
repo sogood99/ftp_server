@@ -203,16 +203,19 @@ struct ClientRequest parse_request(char* buffer){
  */
 enum DataConnMode get_connection_mode(pthread_mutex_t* conn_mode_lock, enum DataConnMode *p_conn_mode){
     pthread_mutex_lock(conn_mode_lock);
-    enum DataConnMode value = *p_conn_mode;
+    enum DataConnMode current_mode = *p_conn_mode;
     pthread_mutex_unlock(conn_mode_lock);
-    return value;
+    return current_mode;
 }
 
 /*
  * Pthread safe way of modifying connection mode
+ * @param conn_mode_lock Mutex Lock
+ * @param p_conn_mode pointer to the DataConnMode
+ * @param new_mode value of next connection mode
  */
-void set_connection_mode(pthread_mutex_t* conn_mode_lock, enum DataConnMode *p_conn_mode, enum DataConnMode value){
+void set_connection_mode(pthread_mutex_t* conn_mode_lock, enum DataConnMode *p_conn_mode, enum DataConnMode new_mode){
     pthread_mutex_lock(conn_mode_lock);
-    *p_conn_mode = value;
+    *p_conn_mode = new_mode;
     pthread_mutex_unlock(conn_mode_lock);
 }

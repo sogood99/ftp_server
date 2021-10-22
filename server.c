@@ -1,6 +1,6 @@
 /* main server file, primarily handles initializing server and initial connection with client */
-#include "connect.h"
 #include "utils.h"
+#include "connect.h"
 
 /* 
 * Creates a listening socket and starts assigning work to threads. 
