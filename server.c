@@ -31,7 +31,7 @@ void run_server(){
 
     while (1){
         // keep on accepting connection from client
-        conn_fd = accept(listen_fd, (SA *)&client_address, &client_length);
+        conn_fd = accept(listen_fd, &client_address, &client_length);
         getnameinfo(&client_address, client_length, hostname_str, MAXLEN,
             port_str, MAXLEN, NI_NUMERICHOST|NI_NUMERICSERV);
         printf("System: Connection Established With %s:%s\n", hostname_str, port_str);

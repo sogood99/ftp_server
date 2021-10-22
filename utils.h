@@ -29,19 +29,22 @@ struct ServerParams{
 enum ClientState{
     Login, /* Waiting for username and password */
     SelectMode, /* Select PORT or PASV */
-    Connecting, /* Connecting to ftp client via PORT or PASV */
-    Idle, /* finished connecting to PORT or PASV, awaiting instructions */
+    Idle, /* finished selecting PORT or PASV, awaiting instructions */
     Transfer, /* file is transfering */
     Exit, /* Exiting */
 };
 
 // data connection mode (PASV or PORT)
 enum DataConnMode{
-    NOTSET, /* idle mode, next state (if exists) is connect */
-    CONNECTING, /* trying to establish a connection with listen (PASV) or connect (PORT) */
+    NOTSET, /* idle mode */
     PASV,
     PORT,
-    CLOSING, /* closing sockets, next state is NOTSET */
+};
+
+struct DataConnFd{/* to store all neccesary fd's for data connection socket */
+    int pasv_listen_fd;
+    int pasv_conn_fd;
+    int port_conn_fd; /* default to -1 */
 };
 
 // client request
@@ -67,6 +70,7 @@ int isAlphabet(char c);
 int isNumeric(char c);
 int isEmpty(char* string);
 int isEqual(char* string_a, char* string_b);
+void init_dataconn_fd(struct DataConnFd* p_data_fd);
 struct ClientRequest parse_request(char* buffer);
 struct AddressPort parse_address_port(char* buffer);
 #endif
