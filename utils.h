@@ -56,7 +56,8 @@ struct AddressPort{
     char port[MAXLEN];
 };
 
-int create_listen_socket(char* port);
+int read_buffer(int fd, char* buffer, size_t buffer_size, char* outer_buffer, char** p_last_read);
+int create_listen_socket(char* host, char* port);
 int create_connect_socket(char* hostname, char* port);
 void parse_args(char** argv);
 void to_ftp_address_port(struct AddressPort ap, char* ftp_output);

@@ -10,9 +10,11 @@ void* handle_client(void* p_connect_fd){
     free(p_connect_fd);
 
     // for socket
-    char buffer[BUFF_SIZE];
-    size_t bytes_read;
-    bzero(buffer, sizeof(buffer)); /* clear buffer */
+    char buffer[BUFF_SIZE + 1], outer_buffer[BUFF_SIZE + 1], *last_read = outer_buffer;
+    int did_read; /* bool if anything is left read from buffer, check out read_buffer function for more info */
+    bzero(buffer, BUFF_SIZE + 1); /* clear buffer */
+    bzero(outer_buffer, BUFF_SIZE + 1); /* clear buffer */
+
 
     /* -------- FTP Code Begins -------- */
 
@@ -37,7 +39,10 @@ void* handle_client(void* p_connect_fd){
     char* unknown_format_msg = "500 Unknown Request Format\015\012";
     write(connect_fd, hello_msg, strlen(hello_msg));
 
-    while ((bytes_read = read(connect_fd, buffer, sizeof(buffer)) > 0)){ /* keep on reading commands */
+    while ((did_read = read_buffer(connect_fd, buffer, BUFF_SIZE, outer_buffer, &last_read))){ /* keep on reading commands */
+        if (did_read == -1){ /* return value == -1 means read for another round, check doc for read_buffer */
+            continue;
+        }
         struct ClientRequest request_command = parse_request(buffer);
         if (isEmpty(request_command.verb)){ /* check command validity */
             // empty => parse error
@@ -236,24 +241,42 @@ void * handle_data_transfer(void* p_params){
  */
 int handle_PASV_mode(int connect_fd, enum DataConnMode* p_current_mode, pthread_mutex_t* p_transfer_mode_lock){
 
+    printf("In PASV mode\n");
+    char* msg = "passive mode entered\015\012";
+    write(connect_fd, msg, strlen(msg));
+
+    /* ------------- Get the current address used to connect with client ------------- */
     struct sockaddr client_address; /* interface for the connection with client */
     socklen_t client_length = sizeof(client_address);
 
     struct AddressPort client_ap;
 
-    getpeername(connect_fd, &client_address, &client_length);
+    getsockname(connect_fd, &client_address, &client_length);
     getnameinfo(&client_address, client_length, client_ap.address, MAXLEN,
         client_ap.port, MAXLEN, NI_NUMERICHOST|NI_NUMERICSERV); /* get info from socket, force numerical values */
+
+
+    printf("old: %s\n", client_ap.port);
+
+    // now create a new socket to listen on that address with arbitrary port
+    int pasv_listen_fd = create_listen_socket(client_ap.address, "0");
+    if (pasv_listen_fd < 0){
+        return -1;
+    }
+
+    bzero(&client_address, client_length); /* clear address for reuse */
+    getsockname(pasv_listen_fd, &client_address, &client_length);
+    getnameinfo(&client_address, client_length, client_ap.address, MAXLEN,
+        client_ap.port, MAXLEN, NI_NUMERICHOST|NI_NUMERICSERV); /* get info from socket, force numerical values */
+
+    // information is now updated into client_ap, change to ftp format and write
     
-    char ftp_address[BUFF_SIZE]; /* host port string in the format of ftp */
+    char ftp_address[BUFF_SIZE];
     bzero(ftp_address, BUFF_SIZE);
 
-    to_ftp_address_port(client_ap, ftp_address);
-
-
+    to_ftp_address_port(client_ap, ftp_address);  /* host port string in the format of ftp */
     printf("%s ftp address = %s\n", client_ap.port, ftp_address);
 
-    printf("In PASV mode\n");
     return 0;
 }
 

@@ -1,11 +1,64 @@
 #include "utils.h"
 
 /*
+ * First checks if \n exits already exits in outer buffer, if so then push it to buffer and notify to process (ret = 1) 
+ * if \n doesnt exist then reads from socket to last_read, if \n doesnt exist and read nothing from socket, can discard (0)
+ * otherwise wait for next round of read (-1)
+ * DO NOT USE return value as measurement of how many bytes read in buffer!!!!!!
+ * @param fd file data for socket
+ * @param buffer place to put newline
+ * @param buffer_size just set to BUFFSIZE
+ * @param outer_buffer the start of buffer that records string that have not been read
+ * @param p_last_read pointer to last location 
+ * @returns 0 if there are no strings left and socket closed, 1 if buffer is ready to process, -1 if 
+ * there still is things to read, but there is nothing to process in buffer
+ */
+int read_buffer(int fd, char* buffer, size_t buffer_size, char* outer_buffer, char** p_last_read){
+
+    char* last_read = *p_last_read;
+
+    // scan outer buffer for \n
+    int index = 0, outer_buffer_size = last_read-outer_buffer;
+    while (index < outer_buffer_size){
+        if (outer_buffer[index] == '\n'){
+            break;
+        }
+        index ++;
+    }
+    if (index < outer_buffer_size){ /* found a \n at outer_buffer[index] */
+
+        // copy outer_buffer[0]...outer_buffer[index] to buffer
+        strncpy(buffer, outer_buffer, index+1);
+
+        // move outer_buffer[index+1] .. last_read to outer_buffer[0]... (last_read-outer_buffer - index - 1)
+        char temp_buffer[buffer_size];
+        bzero(temp_buffer, 0);
+
+        int new_outer_buffer_len = (last_read-outer_buffer - index - 1);
+        strncpy(temp_buffer, outer_buffer + index + 1, new_outer_buffer_len);
+        strncpy(outer_buffer, temp_buffer, buffer_size); /* use buffer_size to clear out outer_buffer in the process */
+        *p_last_read = outer_buffer + new_outer_buffer_len;
+        return 1;
+    }
+    // else there was no \n in outer_buffer
+
+    size_t bytes_read;
+    bytes_read = read(fd, outer_buffer, BUFF_SIZE - (last_read - outer_buffer));
+    *p_last_read += bytes_read;
+    if (bytes_read == 0){
+        // no \n found and socket closed (read returned 0), this means the outer buffer can be safely discarded
+        return 0;
+    }
+    return -1; /* there might be more input from tcp socket, wait some more, tell the process to wait for another read */
+}
+
+/*
  * Creates a listening socket on port. Many thanks to CSAPP Section 11.4.
- * @param Port String for port
+ * @param host String for host, if any then set = NULL
+ * @param port String for port
  * @returns listen_fd file descriptor, or -1 if error
 */
-int create_listen_socket(char* port){
+int create_listen_socket(char* host, char* port){
     struct addrinfo hints, *results, *p; /* hints to fine tune result list */
     int listen_fd, opt = 1;
 
@@ -15,9 +68,9 @@ int create_listen_socket(char* port){
 
     hints.ai_family = AF_INET; /* only IPV-4 for now */
     hints.ai_socktype = SOL_SOCKET; /* tcp socket */
-    hints.ai_flags = AI_PASSIVE | AI_ADDRCONFIG | AI_NUMERICSERV;
+    hints.ai_flags = AI_PASSIVE | AI_ADDRCONFIG | AI_NUMERICSERV; /* intend for bind */
 
-    getaddrinfo(NULL, port, &hints, &results);
+    getaddrinfo(host, port, &hints, &results);
 
     for (p = results; p != NULL; p = p->ai_next){
         // starts trying them
