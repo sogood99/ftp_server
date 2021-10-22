@@ -35,15 +35,12 @@ enum ClientState{
     Exit, /* Exiting */
 };
 
-// data connection mode in (PASV or PORT)
+// data connection mode (PASV or PORT)
 enum DataConnMode{
-    NOTSET, /* idle mode, next state (if exits) is CREATING_SOCEKT or PORT */
-    CREATING_SOCKET, /* trying to create a socket with listen (PASV) */
-    PASV, /* established a listening port, not yet connected */
-    PASV_CONNECTED, /* connected to something */
-    PORT, /* recorded the client's address */
-    PORT_CONNECTING, /* attempting to establish connection */
-    PORT_CONNECTED, /* connected to client's server */
+    NOTSET, /* idle mode, next state (if exists) is connect */
+    CONNECTING, /* trying to establish a connection with listen (PASV) or connect (PORT) */
+    PASV,
+    PORT,
     CLOSING, /* closing sockets, next state is NOTSET */
 };
 
@@ -70,8 +67,6 @@ int isAlphabet(char c);
 int isNumeric(char c);
 int isEmpty(char* string);
 int isEqual(char* string_a, char* string_b);
-enum DataConnMode get_connection_mode(pthread_mutex_t* p_lock, enum DataConnMode* p_value);
-void set_connection_mode(pthread_mutex_t* p_lock, enum DataConnMode* p_value, enum DataConnMode new_value);
 struct ClientRequest parse_request(char* buffer);
 struct AddressPort parse_address_port(char* buffer);
 #endif
