@@ -59,6 +59,7 @@ struct AddressPort{
 int create_listen_socket(char* port);
 int create_connect_socket(char* hostname, char* port);
 void parse_args(char** argv);
+void to_ftp_address_port(struct AddressPort ap, char* ftp_output);
 int isPrefix(char* string, char* prefix);
 int isSuffix(char* string, char* suffix);
 int isAlphabet(char c);

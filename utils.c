@@ -233,7 +233,7 @@ void set_connection_mode(pthread_mutex_t* p_lock, enum DataConnMode* p_value, en
 }
 
 /*
- * Parses address and port for FTP specifications
+ * Parses address and port from FTP specifications
  * TODO: Make this safer by checking port size
  * @param buffer string of size BUFFSIZE to parse
  * @returns parsed address and port, is empty if parse error
@@ -306,4 +306,58 @@ struct AddressPort parse_address_port(char* buffer){
         sprintf(client_in.port, "%d", port_num);
     }
     return client_in;
+}
+
+/*
+ * Turns address and port to FTP specifications h1,h2,h3,h4,p1,p2 where port = p1*256+p2
+ * Implicitly assuming correctness of address and port format (since given by standard libs)
+ * @param ap address and port
+ * @param ftp_output where to output
+ * @returns string of address and port in ftp standards
+ */
+void to_ftp_address_port(struct AddressPort ap, char* ftp_output){
+    int index = 0, port_num = 0, pindex = 0;
+    while (index < BUFF_SIZE){
+        if (ap.address[index] == 0){
+            break;
+        } else if (ap.address[index] == '.'){
+            ftp_output[index] = ',';
+        }else{
+            ftp_output[index] = ap.address[index];
+        }
+        index ++;
+    }
+    ftp_output[index] = ',';
+    index ++;
+
+    port_num = atoi(ap.port);
+
+    char p1[MAXLEN], p2[MAXLEN];
+    bzero(p1,MAXLEN);
+    bzero(p2,MAXLEN);
+
+    sprintf(p1, "%d", port_num/256);
+    sprintf(p2, "%d", port_num%256);
+    
+    while (pindex < MAXLEN){
+        if (p1[pindex] == 0){
+            break;
+        }else{
+            ftp_output[index] = p1[pindex];
+        }
+        index ++;
+        pindex ++;
+    }
+    ftp_output[index] = ',';
+    index ++;
+    pindex = 0;
+    while (pindex < MAXLEN){
+        if (p2[pindex] == 0){
+            break;
+        }else{
+            ftp_output[index] = p2[pindex];
+        }
+        index ++;
+        pindex ++;
+    }
 }

@@ -235,7 +235,24 @@ void * handle_data_transfer(void* p_params){
  * @returns 0 if fine, -1 if error
  */
 int handle_PASV_mode(int connect_fd, enum DataConnMode* p_current_mode, pthread_mutex_t* p_transfer_mode_lock){
+
+    struct sockaddr client_address; /* interface for the connection with client */
+    socklen_t client_length = sizeof(client_address);
+
+    struct AddressPort client_ap;
+
+    getpeername(connect_fd, &client_address, &client_length);
+    getnameinfo(&client_address, client_length, client_ap.address, MAXLEN,
+        client_ap.port, MAXLEN, NI_NUMERICHOST|NI_NUMERICSERV); /* get info from socket, force numerical values */
     
+    char ftp_address[BUFF_SIZE]; /* host port string in the format of ftp */
+    bzero(ftp_address, BUFF_SIZE);
+
+    to_ftp_address_port(client_ap, ftp_address);
+
+
+    printf("%s ftp address = %s\n", client_ap.port, ftp_address);
+
     printf("In PASV mode\n");
     return 0;
 }
