@@ -488,3 +488,42 @@ void to_ftp_address_port(struct AddressPort ap, char *ftp_output)
         pindex++;
     }
 }
+
+/*
+ * Close all file descriptors that are not == -1, and set = -1
+ * Safe to use in idle mode
+ */
+void close_all_fd(struct DataConnFd *p_data_fd)
+{
+    if (p_data_fd->pasv_conn_fd != -1)
+    {
+        close(p_data_fd->pasv_conn_fd);
+    }
+    if (p_data_fd->pasv_listen_fd != -1)
+    {
+        close(p_data_fd->pasv_listen_fd);
+    }
+    if (p_data_fd->port_conn_fd != -1)
+    {
+        close(p_data_fd->port_conn_fd);
+    }
+}
+
+/*
+ * Shutdown all fd, similar to close_all_fd, use when unsure if somthing is using the fd
+ */
+void close_all_fd(struct DataConnFd *p_data_fd)
+{
+    if (p_data_fd->pasv_conn_fd != -1)
+    {
+        shutdown(p_data_fd->pasv_conn_fd, SHUT_RD);
+    }
+    if (p_data_fd->pasv_listen_fd != -1)
+    {
+        shutdown(p_data_fd->pasv_listen_fd, SHUT_RD);
+    }
+    if (p_data_fd->port_conn_fd != -1)
+    {
+        shutdown(p_data_fd->port_conn_fd, SHUT_RD);
+    }
+}

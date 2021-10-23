@@ -280,7 +280,7 @@ void *handle_data_transfer(void *p_params)
     }
     else if (user_request_mode == PORT)
     {
-        handle_PORT_mode(connect_fd, p_data_fd, client_address, client_port);
+        /* doesnt have to do anything */
     }
     else
     {
@@ -292,6 +292,8 @@ void *handle_data_transfer(void *p_params)
 
 /*
  * Handles PASV mode
+ * Do not use p_data_fd directly as the main thread might shutdown and clear it
+ * Use it to pass back the file descriptors only
  * @returns 0 if fine, -1 if error
  */
 int handle_PASV_mode(int connect_fd, struct DataConnFd *p_data_fd)
@@ -308,8 +310,9 @@ int handle_PASV_mode(int connect_fd, struct DataConnFd *p_data_fd)
                 client_ap.port, MAXLEN, NI_NUMERICHOST | NI_NUMERICSERV); /* get info from socket, force numerical values */
 
     // now create a new socket to listen on that address with arbitrary port
-    p_data_fd->pasv_listen_fd = create_listen_socket(client_ap.address, "0");
-    if (p_data_fd->pasv_listen_fd < 0)
+    int pasv_listen_fd = create_listen_socket(client_ap.address, "0");
+    p_data_fd->pasv_listen_fd = pasv_listen_fd;
+    if (pasv_listen_fd < 0)
     {
         return -1;
     }
@@ -339,34 +342,22 @@ int handle_PASV_mode(int connect_fd, struct DataConnFd *p_data_fd)
     // finished sending port, no longer need address information
     bzero(&client_address, client_length);
 
-    if ((p_data_fd->pasv_conn_fd = accept(p_data_fd->pasv_listen_fd, &client_address, &client_length)) < 0)
+    int pasv_conn_fd;
+    if ((pasv_conn_fd = accept(p_data_fd->pasv_listen_fd, &client_address, &client_length)) < 0)
     {
         // accept shutdown by main thread, close and quit
-        close(p_data_fd->pasv_listen_fd);
-        p_data_fd->pasv_listen_fd = -1;
-        p_data_fd->pasv_conn_fd = -1;
+        close(pasv_listen_fd);
         return -1;
     }
     /* -------------- Successfully connected to something --------------*/
+    p_data_fd->pasv_conn_fd = pasv_conn_fd;
     close(p_data_fd->pasv_listen_fd); /* close listen socket */
-    p_data_fd->pasv_listen_fd = -1;
-    write(p_data_fd->pasv_conn_fd, "caught you!", 12);
-    char buffer[BUFF_SIZE];
-    bzero(buffer, BUFF_SIZE);
-    while (read(p_data_fd->pasv_conn_fd, buffer, BUFF_SIZE) > 0)
-    {
-        printf("%s", buffer);
-        write(p_data_fd->pasv_conn_fd, buffer, strlen(buffer));
-        bzero(buffer, BUFF_SIZE);
-    }
-    close(p_data_fd->pasv_conn_fd);
-    p_data_fd->pasv_conn_fd = -1;
-    printf("EXITING THIS SHITHOLE\n");
+    p_data_fd->pasv_listen_fd = -1;   /* clear listen socket */
     return 0;
 }
 
 /*
- * Handles PORT mode
+ * Handles PORT mode when there needs to be a connection
  * @returns 0 if fine, -1 if error
  */
 int handle_PORT_mode(int connect_fd, struct DataConnFd *p_data_fd, char *client_address, char *client_port)
@@ -389,23 +380,8 @@ enum ClientState process_idle_mode(struct ClientRequest request, int connect_fd,
 
     if (isEqual(request.verb, "CLOSE"))
     {
-        // close
-        printf("Closing\015\012");
-        if (p_data_fd->pasv_conn_fd != -1)
-        {
-            // not in data transfer mode implies safe to close
-            close(p_data_fd->pasv_conn_fd);
-        }
-        if (p_data_fd->pasv_listen_fd != -1)
-        {
-            // should already equal -1, close just in case
-            close(p_data_fd->pasv_listen_fd);
-        }
-        if (p_data_fd->port_conn_fd != -1)
-        {
-            // should already equal -1, close just in case
-            close(p_data_fd->port_conn_fd);
-        }
+        // safe to close since all of the sockets are idle
+        close_all_fd(p_data_fd);
     }
     else if (isEqual(request.verb, "PORT"))
     {

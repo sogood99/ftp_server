@@ -79,4 +79,6 @@ int isEqual(char *string_a, char *string_b);
 void init_dataconn_fd(struct DataConnFd *p_data_fd);
 struct ClientRequest parse_request(char *buffer);
 struct AddressPort parse_address_port(char *buffer);
+void close_all_fd(struct DataConnFd *p_data_fd);
+void shutdown_all_fd(struct DataConnFd *p_data_fd);
 #endif
