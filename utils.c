@@ -15,6 +15,7 @@
  */
 int read_buffer(int fd, char *buffer, size_t buffer_size, char *outer_buffer, char **p_last_read)
 {
+
     char *last_read = *p_last_read;
 
     // scan outer buffer for \n
@@ -35,7 +36,7 @@ int read_buffer(int fd, char *buffer, size_t buffer_size, char *outer_buffer, ch
 
         // move outer_buffer[index+1] .. last_read to outer_buffer[0]... (last_read-outer_buffer - index - 1)
         char temp_buffer[buffer_size];
-        bzero(temp_buffer, buffer_size);
+        bzero(temp_buffer, 0);
 
         int new_outer_buffer_len = (last_read - outer_buffer - index - 1);
         strncpy(temp_buffer, outer_buffer + index + 1, new_outer_buffer_len);
@@ -72,7 +73,7 @@ int create_listen_socket(char *host, char *port)
     bzero(&hints, sizeof(struct addrinfo));
 
     hints.ai_family = AF_INET;                                    /* only IPV-4 for now */
-    hints.ai_socktype = SOL_SOCKET;                               /* tcp socket and non-blocking */
+    hints.ai_socktype = SOL_SOCKET;                               /* tcp socket */
     hints.ai_flags = AI_PASSIVE | AI_ADDRCONFIG | AI_NUMERICSERV; /* intend for bind */
 
     getaddrinfo(host, port, &hints, &results);
@@ -142,7 +143,7 @@ int create_connect_socket(char *hostname, char *port)
 
     bzero(&hints, sizeof(struct addrinfo));
 
-    hints.ai_socktype = SOCK_STREAM | SOCK_NONBLOCK; /* tcp */
+    hints.ai_socktype = SOCK_STREAM; /* tcp */
     hints.ai_flags = AI_NUMERICSERV | AI_ADDRCONFIG;
     getaddrinfo(hostname, port, &hints, &results);
 
@@ -271,26 +272,27 @@ int isEqual(char *string_a, char *string_b)
 
 /*
  * TODO, add security measures for when buffer contains verb/param > MAXLEN
- * @returns -1 if there is error, 0 if all is well
+ * @returns struct ClientRequest, if in wrong format then ClientRequest has empty strings
  */
-int parse_request(char *buffer, struct ClientRequest *request)
+struct ClientRequest parse_request(char *buffer)
 {
-    bzero(request->verb, MAXLEN);
-    bzero(request->parameter, MAXLEN);
+    struct ClientRequest request;
+    bzero(request.verb, MAXLEN);
+    bzero(request.parameter, MAXLEN);
 
     // for security reasons, last char of buffer should == 0
     if (buffer[BUFF_SIZE - 1] != 0)
     {
         // refuse to parse
         printf("Parser: Security Warning, Buffer Overflow, refused to parse command\n");
-        return -1;
+        return request;
     }
 
     // check suffix
     if (!isSuffix(buffer, "\015\012"))
     {
         printf("Parser: Client Command Wrong Suffix\n");
-        return -1;
+        return request;
     }
 
     int verb_length = 0, index = 0;
@@ -308,19 +310,19 @@ int parse_request(char *buffer, struct ClientRequest *request)
             else if (buffer[index] == '\015' || buffer[index] == '\012')
             {
                 // ended without parameter (fine)
-                return 0;
+                return request;
             }
             else if (!isAlphabet(buffer[index]))
             {
                 // not in correct format, return empty struct
                 printf("Parser: Verb Not All Alphabet\n");
-                bzero(request->verb, MAXLEN);
-                bzero(request->parameter, MAXLEN);
-                return -1;
+                bzero(request.verb, MAXLEN);
+                bzero(request.parameter, MAXLEN);
+                return request;
             }
             else
             {
-                request->verb[index] = buffer[index];
+                request.verb[index] = buffer[index];
             }
         }
         else
@@ -328,11 +330,11 @@ int parse_request(char *buffer, struct ClientRequest *request)
             // currently parsing parameter
             if (buffer[index] == '\015' || buffer[index] == '\012')
             {
-                return 0;
+                return request;
             }
             else
             {
-                request->parameter[index - verb_length - 1] = buffer[index];
+                request.parameter[index - verb_length - 1] = buffer[index];
             }
         }
         index++;
@@ -340,9 +342,9 @@ int parse_request(char *buffer, struct ClientRequest *request)
 
     // should return before here
     printf("Error in parsing, should not be here, please slap the person who wrote this code (me)");
-    bzero(request->verb, MAXLEN);
-    bzero(request->parameter, MAXLEN);
-    return -1;
+    bzero(request.verb, MAXLEN);
+    bzero(request.parameter, MAXLEN);
+    return request;
 }
 
 /*
@@ -360,17 +362,18 @@ void init_dataconn_fd(struct DataConnFd *p_data_fd)
  * Parses address and port from FTP specifications
  * TODO: Make this safer by checking port size
  * @param buffer string of size BUFFSIZE to parse
- * @returns -1 if parse error 0 if all is well
+ * @returns parsed address and port, is empty if parse error
  */
-int parse_address_port(char *buffer, struct AddressPort *client_in)
+struct AddressPort parse_address_port(char *buffer)
 {
-    bzero(client_in->address, MAXLEN);
-    bzero(client_in->port, MAXLEN);
+    struct AddressPort client_in;
+    bzero(client_in.address, MAXLEN);
+    bzero(client_in.port, MAXLEN);
 
     if (buffer[BUFF_SIZE - 1] != 0)
     {
         // for security reasons
-        return -1;
+        return client_in;
     }
 
     int index = 0, comma_count = 0, port_num_1 = 0, port_num_2 = 0;
@@ -396,13 +399,13 @@ int parse_address_port(char *buffer, struct AddressPort *client_in)
                 if (comma_count != 3)
                 {
                     // dont add in last comma
-                    client_in->address[index] = '.';
+                    client_in.address[index] = '.';
                 }
                 comma_count++;
             }
             else if (isNumeric(buffer[index]))
             {
-                client_in->address[index] = buffer[index];
+                client_in.address[index] = buffer[index];
             }
             else
             {
@@ -455,13 +458,14 @@ int parse_address_port(char *buffer, struct AddressPort *client_in)
     if (incorrect_format || comma_count != 5 || (index > 0 && buffer[index - 1] == ','))
     { /* cannot end in comma */
         printf("Parser: Parameter not in correct format\n");
-        return -1;
+        bzero(client_in.address, MAXLEN);
+        bzero(client_in.port, MAXLEN);
     }
     else
     {
-        sprintf(client_in->port, "%d", port_num_1 * 256 + port_num_2);
+        sprintf(client_in.port, "%d", port_num_1 * 256 + port_num_2);
     }
-    return 0;
+    return client_in;
 }
 
 /*
@@ -632,24 +636,24 @@ int get_abspath(char *input_path, char *output_path, int should_create)
 /*
  * Close all file descriptors that are not == -1, and set the fd to -1
  */
-void close_all_fd(struct DataConnFd *p_data_fd, fd_set *p_socket_set)
+void close_all_fd(struct DataConnFd *p_data_fd)
 {
     if (p_data_fd->pasv_conn_fd != -1)
     {
+        // safe to close
         close(p_data_fd->pasv_conn_fd);
-        FD_CLR(p_data_fd->pasv_conn_fd, p_socket_set);
         p_data_fd->pasv_conn_fd = -1;
     }
     if (p_data_fd->pasv_listen_fd != -1)
     {
-        close(p_data_fd->pasv_listen_fd);
-        FD_CLR(p_data_fd->pasv_listen_fd, p_socket_set);
+        // this means PASV is still accepting on port, shutdown to inform
+        shutdown(p_data_fd->pasv_listen_fd, SHUT_RD);
         p_data_fd->pasv_listen_fd = -1;
     }
     if (p_data_fd->port_conn_fd != -1)
     {
+        // safe to close
         close(p_data_fd->port_conn_fd);
-        FD_CLR(p_data_fd->port_conn_fd, p_socket_set);
         p_data_fd->port_conn_fd = -1;
     }
 }
