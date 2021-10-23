@@ -175,15 +175,19 @@ int create_connect_socket(char *hostname, char *port)
 /*
  * Changes global variable g_current_server_params
  * TODO: take in argc values and produce dir location and port value
+ * @returns -1 if error, 0 if fine
  */
-void parse_args(char **argv)
+int parse_args(char **argv)
 {
     strcpy(g_current_server_params.port, DEFAULT_PORT);
 
-    char *path = realpath("/tmp/", NULL);
-    strcpy(g_current_server_params.root_directory, path);
-
-    free(path); /* specified by realpath */
+    bzero(g_current_server_params.root_directory, MAXLEN);
+    char *path = realpath("/tmp/", g_current_server_params.root_directory);
+    if (path != g_current_server_params.root_directory) /* specified by realpath */
+    {
+        return -1;
+    }
+    return 0;
 }
 /*
  * Checks if is prefix, returns 1 if true, 0 if false
@@ -532,46 +536,103 @@ void to_ftp_address_port(struct AddressPort ap, char *ftp_output)
 }
 
 /*
- * Close all file descriptors that are not == -1, and set = -1
- * Safe to use in idle mode
+ * Check that path exists and output the absolute path to the input
+ * Checks that the input doesnt have ../ as to not go up the root directory
+ * @returns 1 if path doesnt exists, 2 if path has two dots, -1 if not in correct format/error 
+ * 0 if all is well
+ */
+int get_abspath(char *input_path, char *output_path)
+{
+    // scans path while copying and making sure the path is valid
+    char temp_concat[MAXLEN]; // temp variable to store the concated string
+
+    bzero(temp_concat, MAXLEN);
+    bzero(output_path, MAXLEN);
+    int index = 0, period_count = 0, root_length = 0;
+    char *root_dir = g_current_server_params.root_directory;
+    while (index < MAXLEN)
+    {
+        if (root_dir[index] == 0)
+        {
+            break;
+        }
+        else
+        {
+            temp_concat[index] = root_dir[index];
+            index++;
+            root_length++;
+        }
+    }
+    if (index == MAXLEN)
+    {
+        // too large
+        return -1;
+    }
+
+    temp_concat[index] = '/';
+    index++;
+    int input_path_index = 0;
+
+    while (index < MAXLEN)
+    {
+        if (input_path[input_path_index] == 0) /* End of string */
+        {
+            break;
+        }
+
+        if (input_path[input_path_index] == '.')
+        {
+            period_count++;
+        }
+        else
+        {
+            period_count = 0;
+        }
+        if (period_count >= 2)
+        {
+            // .. not allowed
+            return 2;
+        }
+        temp_concat[index] = input_path[input_path_index];
+        index++;
+        input_path_index++;
+    }
+    if (index == MAXLEN)
+    {
+        // too large
+        return -1;
+    }
+
+    char *resolved_path = realpath(temp_concat, output_path);
+    if (resolved_path != output_path)
+    {             /* realpath man page specifies = NULL or = output path, just incase */
+        return 1; /* path not recognized */
+    }
+    // everything good
+    return 0;
+}
+
+/*
+ * Close all file descriptors that are not == -1, and set the fd to -1
  */
 void close_all_fd(struct DataConnFd *p_data_fd)
 {
     if (p_data_fd->pasv_conn_fd != -1)
     {
+        // safe to close
         close(p_data_fd->pasv_conn_fd);
         p_data_fd->pasv_conn_fd = -1;
     }
     if (p_data_fd->pasv_listen_fd != -1)
     {
-        close(p_data_fd->pasv_listen_fd);
-        p_data_fd->pasv_listen_fd = -1;
-    }
-    if (p_data_fd->port_conn_fd != -1)
-    {
-        close(p_data_fd->port_conn_fd);
-        p_data_fd->port_conn_fd = -1;
-    }
-}
-
-/*
- * Shutdown all fd, similar to close_all_fd, use when unsure if some thread is using the fd
- */
-void shutdown_all_fd(struct DataConnFd *p_data_fd)
-{
-    if (p_data_fd->pasv_conn_fd != -1)
-    {
-        shutdown(p_data_fd->pasv_conn_fd, SHUT_RD);
-        p_data_fd->pasv_conn_fd = -1;
-    }
-    if (p_data_fd->pasv_listen_fd != -1)
-    {
+        // this means PASV is still accepting on port, shutdown to inform
         shutdown(p_data_fd->pasv_listen_fd, SHUT_RD);
         p_data_fd->pasv_listen_fd = -1;
     }
     if (p_data_fd->port_conn_fd != -1)
     {
-        shutdown(p_data_fd->port_conn_fd, SHUT_RD);
+        // safe to close
+        close(p_data_fd->port_conn_fd);
         p_data_fd->port_conn_fd = -1;
     }
 }

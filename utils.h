@@ -68,7 +68,7 @@ struct AddressPort
 int read_buffer(int fd, char *buffer, size_t buffer_size, char *outer_buffer, char **p_last_read);
 int create_listen_socket(char *host, char *port);
 int create_connect_socket(char *hostname, char *port);
-void parse_args(char **argv);
+int parse_args(char **argv);
 void to_ftp_address_port(struct AddressPort ap, char *ftp_output);
 int isPrefix(char *string, char *prefix);
 int isSuffix(char *string, char *suffix);
@@ -79,6 +79,6 @@ int isEqual(char *string_a, char *string_b);
 void init_dataconn_fd(struct DataConnFd *p_data_fd);
 struct ClientRequest parse_request(char *buffer);
 struct AddressPort parse_address_port(char *buffer);
+int get_abspath(char *input_path, char *output_path);
 void close_all_fd(struct DataConnFd *p_data_fd);
-void shutdown_all_fd(struct DataConnFd *p_data_fd);
 #endif

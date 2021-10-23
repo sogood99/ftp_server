@@ -51,7 +51,11 @@ void run_server()
 
 int main(int argc, char **argv)
 {
-    parse_args(argv);
+    if (parse_args(argv) == -1)
+    {
+        printf("System: Root Directory Not Found\n");
+        return EXIT_FAILURE;
+    }
     run_server();
     return 0;
 }

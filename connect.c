@@ -359,6 +359,10 @@ int handle_PASV_mode(int connect_fd, struct DataConnFd *p_data_fd)
  */
 int handle_PORT_mode(int connect_fd, struct DataConnFd *p_data_fd, char *client_hostname, char *client_port)
 {
+    if (p_data_fd->port_conn_fd != -1)
+    {
+        close_all_fd(p_data_fd);
+    }
     int client_fd = create_connect_socket(client_hostname, client_port);
     if (client_fd == -1)
     {
@@ -381,15 +385,49 @@ enum ClientState process_idle_mode(struct ClientRequest request, struct DataConn
 {
     int connect_fd = p_params->conn_fd;
     struct DataConnFd *p_data_fd = p_params->p_data_fd;
+    enum DataConnMode current_mode = p_params->requested_mode;
 
     if (isEqual(request.verb, "CLOSE"))
     {
         // self created command to test the system
         // safe to close since all of the sockets are idle
         close_all_fd(p_data_fd);
+        p_params->requested_mode = NOTSET;
         char *resp_msg = "200 Successfully Closed All Connections\015\012";
         write(connect_fd, resp_msg, strlen(resp_msg));
         return SelectMode;
+    }
+    else if (isEqual(request.verb, "CONNECT"))
+    {
+        // self created command to test the system
+        if (p_params->requested_mode == PORT)
+        {
+            pthread_t conn_thread;
+            pthread_create(&conn_thread, NULL, handle_data_transfer, p_params);
+
+            char *resp_msg = "200 Establishing Connection\015\012";
+            write(connect_fd, resp_msg, strlen(resp_msg));
+            return Idle;
+        }
+        else if (p_params->requested_mode == PASV)
+        {
+            if (p_params->p_data_fd->port_conn_fd != -1)
+            {
+                char *resp_msg = "200 PASV Connected\015\012";
+                write(connect_fd, resp_msg, strlen(resp_msg));
+            }
+            else
+            {
+                char *resp_msg = "425 No PASV Connection Was Established\015\012";
+                write(connect_fd, resp_msg, strlen(resp_msg));
+            }
+            return Idle;
+        }
+        else
+        {
+            printf("Idle: Unknown Combination\n");
+            return SelectMode;
+        }
     }
     else if (isEqual(request.verb, "PORT"))
     {
@@ -437,6 +475,45 @@ enum ClientState process_idle_mode(struct ClientRequest request, struct DataConn
             return Idle;
         }
     }
+    else if (isEqual(request.verb, "RETR"))
+    {
+        if (current_mode == PASV && p_data_fd->pasv_conn_fd == -1) /* tcp not connected yet */
+        {
+            char *resp_msg = "425 Connection Was Not Established.\015\012";
+            write(connect_fd, resp_msg, strlen(resp_msg));
+
+            close_all_fd(p_data_fd);
+            p_params->requested_mode = NOTSET;
+            return SelectMode;
+        }
+
+        // was established / is in port mode
+        char *absolute_path = p_params->file_path;
+        absolute_path[MAXLEN] = 0; // safety
+
+        int resp = get_abspath(request.parameter, absolute_path);
+        if (resp == 0)
+        {
+            // send file by creating another thread
+
+            pthread_t thread;
+            pthread_create(&thread, NULL, send_file, p_params);
+            return Transfer;
+        }
+        else if (resp == -1 || resp == 1)
+        {
+            char *resp_msg = "451 Could not read from disk.\015\012";
+            write(connect_fd, resp_msg, strlen(resp_msg));
+        }
+        else if (resp == 2)
+        {
+            char *resp_msg = "550 Permission Denied.\015\012";
+            write(connect_fd, resp_msg, strlen(resp_msg));
+        }
+        close_all_fd(p_data_fd);
+        p_params->requested_mode = NOTSET;
+        return SelectMode;
+    }
     else if (isEqual(request.verb, "QUIT"))
     {
         close_all_fd(p_data_fd);
@@ -450,4 +527,15 @@ enum ClientState process_idle_mode(struct ClientRequest request, struct DataConn
         write(connect_fd, resp_msg, strlen(resp_msg));
     }
     return Idle;
+}
+
+/*
+ * Sends file through client's socket
+ * @param p_params of type DataConnParam*
+ */
+void *send_file(void *p_params)
+{
+    struct DataConnParam *p_data_params = p_params;
+
+    return NULL;
 }
