@@ -78,8 +78,8 @@ int isNumeric(char c);
 int isEmpty(char *string);
 int isEqual(char *string_a, char *string_b);
 void init_dataconn_fd(struct DataConnFd *p_data_fd);
-struct ClientRequest parse_request(char *buffer);
-struct AddressPort parse_address_port(char *buffer);
+int parse_request(char *buffer, struct ClientRequest *request);
+int parse_address_port(char *buffer, struct AddressPort *ap);
 int get_abspath(char *input_path, char *output_path, int should_create);
-void close_all_fd(struct DataConnFd *p_data_fd);
+void close_all_fd(struct DataConnFd *p_data_fd, fd_set *p_socket_set);
 #endif
