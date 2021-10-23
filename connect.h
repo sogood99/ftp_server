@@ -22,5 +22,7 @@ int handle_PORT_mode(int connect_fd, struct DataConnFd *p_data_fd, char *client_
 enum ClientState process_login(struct ClientRequest request, int connect_fd, char *username, char *password); /* login state */
 enum ClientState process_select_mode(struct ClientRequest request, struct DataConnParams *p_params);          /* select mode state */
 enum ClientState process_idle_mode(struct ClientRequest request, struct DataConnParams *p_params);            /* idle state */
+enum ClientState process_transfer_mode(struct ClientRequest request, struct DataConnParams *p_params);        /* tranfer state */
 void *send_file(void *p_params);
+void *store_file(void *p_params);
 #endif

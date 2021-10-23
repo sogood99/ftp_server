@@ -74,6 +74,7 @@ void *handle_client(void *p_connect_fd)
                 break;
             default:
                 printf("Connector: Warning, switch statement should include all the states\n");
+                current_state = Exit;
                 break;
             }
             // if user quits
@@ -359,10 +360,7 @@ int handle_PASV_mode(int connect_fd, struct DataConnFd *p_data_fd)
  */
 int handle_PORT_mode(int connect_fd, struct DataConnFd *p_data_fd, char *client_hostname, char *client_port)
 {
-    if (p_data_fd->port_conn_fd != -1)
-    {
-        close_all_fd(p_data_fd);
-    }
+    close_all_fd(p_data_fd);
     int client_fd = create_connect_socket(client_hostname, client_port);
     if (client_fd == -1)
     {
@@ -491,11 +489,10 @@ enum ClientState process_idle_mode(struct ClientRequest request, struct DataConn
         char *absolute_path = p_params->file_path;
         absolute_path[MAXLEN] = 0; // safety
 
-        int resp = get_abspath(request.parameter, absolute_path);
+        int resp = get_abspath(request.parameter, absolute_path, 0);
         if (resp == 0) /* seems good, send file */
         {
             // send file by creating another thread
-
             pthread_t thread;
             pthread_create(&thread, NULL, send_file, p_params);
             return Transfer;
@@ -510,6 +507,51 @@ enum ClientState process_idle_mode(struct ClientRequest request, struct DataConn
             char *resp_msg = "550 Permission Denied.\015\012";
             write(connect_fd, resp_msg, strlen(resp_msg));
         }
+        // read error, close all fd and return
+        close_all_fd(p_data_fd);
+        p_params->requested_mode = NOTSET;
+        return SelectMode;
+    }
+    else if (isEqual(request.verb, "STORE")) /* pretty much the same as RETR */
+    {
+
+        if (current_mode == PASV && p_data_fd->pasv_conn_fd == -1) /* tcp not connected yet */
+        {
+            printf("here2\n");
+
+            char *resp_msg = "425 Connection Was Not Established.\015\012";
+            write(connect_fd, resp_msg, strlen(resp_msg));
+
+            close_all_fd(p_data_fd);
+            p_params->requested_mode = NOTSET;
+            return SelectMode;
+        }
+
+        // was established / is in port mode
+        char *absolute_path = p_params->file_path;
+        absolute_path[MAXLEN] = 0; // safety
+
+        int resp = get_abspath(request.parameter, absolute_path, 1); /* create file if doesnt exist */
+
+        if (resp == 0) /* seems good, send file */
+        {
+
+            // store file by creating another thread
+            pthread_t thread;
+            pthread_create(&thread, NULL, store_file, p_params);
+            return Transfer;
+        }
+        else if (resp == -1 || resp == 1)
+        {
+            char *resp_msg = "451 Could not read from disk.\015\012";
+            write(connect_fd, resp_msg, strlen(resp_msg));
+        }
+        else if (resp == 2)
+        {
+            char *resp_msg = "550 Permission Denied.\015\012";
+            write(connect_fd, resp_msg, strlen(resp_msg));
+        }
+        // read error, close all fd and return
         close_all_fd(p_data_fd);
         p_params->requested_mode = NOTSET;
         return SelectMode;
@@ -579,6 +621,63 @@ void *send_file(void *p_params)
         }
         bzero(buffer, BUFF_SIZE);
     }
+    char *resp_msg = "226 Transfer Success.\015\012";
+    write(connect_fd, resp_msg, strlen(resp_msg));
+    close_all_fd(p_data_params->p_data_fd);
+    return NULL;
+}
+/*
+ * Sends file through client's socket
+ * @param p_params of type DataConnParam*
+ */
+void *store_file(void *p_params)
+{
+
+    struct DataConnParams *p_data_params = p_params;
+    int connect_fd = p_data_params->conn_fd;
+    int data_transfer_fd = -1;
+
+    if (p_data_params->requested_mode == PORT)
+    {
+        // create a connection
+        data_transfer_fd = create_connect_socket(p_data_params->client_address,
+                                                 p_data_params->client_port);
+
+        if (data_transfer_fd < 0)
+        {
+            char *resp_msg = "425 Could not establish a connection.\015\012";
+            write(connect_fd, resp_msg, strlen(resp_msg));
+            return NULL;
+        }
+        p_data_params->p_data_fd->port_conn_fd = data_transfer_fd;
+    }
+    else if (p_data_params->requested_mode == PASV)
+    {
+        data_transfer_fd = p_data_params->p_data_fd->pasv_conn_fd;
+    }
+    else
+    {
+        printf("Store File: Unknown Transfer Mode");
+        return NULL;
+    }
+
+    char buffer[BUFF_SIZE];
+    bzero(buffer, BUFF_SIZE);
+    FILE *p_file = fopen(p_data_params->file_path, "w");
+    if (p_file == NULL) /* open error */
+    {
+        char *resp_msg = "451 Could not read from disk.\015\012";
+        write(connect_fd, resp_msg, strlen(resp_msg));
+    }
+    fclose(p_file);                                /* clear out file */
+    p_file = fopen(p_data_params->file_path, "a"); /* open in append mode */
+    int read_len;
+    while ((read_len = read(data_transfer_fd, buffer, BUFF_SIZE)) > 0)
+    {
+        fwrite(buffer, 1, read_len, p_file); /* byte mode */
+        bzero(buffer, BUFF_SIZE);
+    }
+    fclose(p_file);
     char *resp_msg = "226 Transfer Success.\015\012";
     write(connect_fd, resp_msg, strlen(resp_msg));
     close_all_fd(p_data_params->p_data_fd);
