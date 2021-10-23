@@ -131,12 +131,45 @@ int create_listen_socket(char *host, char *port)
 
 /*
  * Creates a connection (client) socket to hostname and port. Many thanks to CSAPP Section 11.4.
+ * Uses ip independent getaddrinfo to connect.
+ * Be aware, this function is blocking
  * @param Port String for port
- * @returns conn_fd file descriptor, or -1 if error
+ * @returns client_fd file descriptor, or -1 if error
 */
 int create_connect_socket(char *hostname, char *port)
 {
-    return -1;
+    int client_fd = -1;
+    struct addrinfo hints, *results, *p;
+
+    bzero(&hints, sizeof(struct addrinfo));
+
+    hints.ai_socktype = SOCK_STREAM; /* tcp */
+    hints.ai_flags = AI_NUMERICSERV | AI_ADDRCONFIG;
+    getaddrinfo(hostname, port, &hints, &results);
+
+    for (p = results; p != NULL; p = p->ai_next)
+    {
+        if ((client_fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) < 0)
+        {
+            // failed
+            continue;
+        }
+
+        if (connect(client_fd, p->ai_addr, p->ai_addrlen) != -1) /* no errors in connecting */
+        {
+            break;
+        }
+    }
+    freeaddrinfo(results);
+    if (p == NULL)
+    {
+        // didnt find a connectable
+        return -1;
+    }
+    else
+    {
+        return client_fd;
+    }
 }
 
 /*

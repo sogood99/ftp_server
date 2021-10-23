@@ -259,7 +259,7 @@ enum ClientState process_select_mode(struct ClientRequest request, struct DataCo
 }
 
 /*
- * Process commands in SelectMode state
+ * Starts connecting/listening, use this function only when need connection 
  * @param p_params is of type DataConnParams*
  * @returns Nothing
  */
@@ -271,6 +271,8 @@ void *handle_data_transfer(void *p_params)
     int connect_fd = p_data_params->conn_fd;
     struct DataConnFd *p_data_fd = p_data_params->p_data_fd;
     enum DataConnMode user_request_mode = p_data_params->requested_mode;
+    char *client_hostname = p_data_params->client_address;
+    char *client_port = p_data_params->client_port;
 
     if (user_request_mode == PASV)
     {
@@ -278,7 +280,7 @@ void *handle_data_transfer(void *p_params)
     }
     else if (user_request_mode == PORT)
     {
-        /* doesnt have to do anything */
+        handle_PORT_mode(connect_fd, p_data_fd, client_hostname, client_port);
     }
     else
     {
@@ -352,12 +354,18 @@ int handle_PASV_mode(int connect_fd, struct DataConnFd *p_data_fd)
 }
 
 /*
- * Handles PORT mode when there needs to be a connection
+ * Handles PORT mode when there needs to be a connection (use after RETR or STOR)
  * @returns 0 if fine, -1 if error
  */
-int handle_PORT_mode(int connect_fd, struct DataConnFd *p_data_fd, char *client_address, char *client_port)
+int handle_PORT_mode(int connect_fd, struct DataConnFd *p_data_fd, char *client_hostname, char *client_port)
 {
-    // doesnt have to do anything since connection is done after RETR or STOR
+    int client_fd = create_connect_socket(client_hostname, client_port);
+    if (client_fd == -1)
+    {
+        return -1;
+    }
+    // set the DataConnFd if connection successful
+    p_data_fd->port_conn_fd = client_fd;
     return 0;
 }
 
