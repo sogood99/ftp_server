@@ -310,8 +310,8 @@ int handle_PASV_mode(int connect_fd, struct DataConnFd *p_data_fd)
     getnameinfo(&client_address, client_length, client_ap.address, MAXLEN,
                 client_ap.port, MAXLEN, NI_NUMERICHOST | NI_NUMERICSERV); /* get info from socket, force numerical values */
 
-    // now create a new socket to listen on that address with arbitrary port
-    int pasv_listen_fd = create_listen_socket(client_ap.address, "0");
+    // now create a new socket to listen on the address that is connected with client
+    int pasv_listen_fd = create_listen_socket(client_ap.address, "0"); /* with arbitrary port */
     p_data_fd->pasv_listen_fd = pasv_listen_fd;
     if (pasv_listen_fd < 0)
     {
@@ -381,6 +381,7 @@ int handle_PORT_mode(int connect_fd, struct DataConnFd *p_data_fd, char *client_
  */
 enum ClientState process_idle_mode(struct ClientRequest request, struct DataConnParams *p_params)
 {
+
     int connect_fd = p_params->conn_fd;
     struct DataConnFd *p_data_fd = p_params->p_data_fd;
     enum DataConnMode current_mode = p_params->requested_mode;
@@ -512,13 +513,10 @@ enum ClientState process_idle_mode(struct ClientRequest request, struct DataConn
         p_params->requested_mode = NOTSET;
         return SelectMode;
     }
-    else if (isEqual(request.verb, "STORE")) /* pretty much the same as RETR */
+    else if (isEqual(request.verb, "STOR")) /* pretty much the same as RETR */
     {
-
         if (current_mode == PASV && p_data_fd->pasv_conn_fd == -1) /* tcp not connected yet */
         {
-            printf("here2\n");
-
             char *resp_msg = "425 Connection Was Not Established.\015\012";
             write(connect_fd, resp_msg, strlen(resp_msg));
 
@@ -535,7 +533,6 @@ enum ClientState process_idle_mode(struct ClientRequest request, struct DataConn
 
         if (resp == 0) /* seems good, send file */
         {
-
             // store file by creating another thread
             pthread_t thread;
             pthread_create(&thread, NULL, store_file, p_params);

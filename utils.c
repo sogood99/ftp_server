@@ -58,69 +58,46 @@ int read_buffer(int fd, char *buffer, size_t buffer_size, char *outer_buffer, ch
 }
 
 /*
- * Creates a listening socket on port. Many thanks to CSAPP Section 11.4.
+ * Creates a listening socket on port.
  * @param host String for host, if any then set = NULL
  * @param port String for port
  * @returns listen_fd file descriptor, or -1 if error
 */
 int create_listen_socket(char *host, char *port)
 {
-    struct addrinfo hints, *results, *p; /* hints to fine tune result list */
-    int listen_fd, opt = 1;
+    int listen_fd = -1, opt = 1;
+    struct sockaddr_in server_address = {0};
+    socklen_t address_length = sizeof(server_address);
 
-    /* ----------- Get address linked list ----------- */
-
-    bzero(&hints, sizeof(struct addrinfo));
-
-    hints.ai_family = AF_INET;                                    /* only IPV-4 for now */
-    hints.ai_socktype = SOL_SOCKET;                               /* tcp socket */
-    hints.ai_flags = AI_PASSIVE | AI_ADDRCONFIG | AI_NUMERICSERV; /* intend for bind */
-
-    getaddrinfo(host, port, &hints, &results);
-
-    for (p = results; p != NULL; p = p->ai_next)
+    listen_fd = socket(AF_INET, SOCK_STREAM, 0); /* TCP socket */
+    if (listen_fd < 0)
     {
-        // starts trying them
-        listen_fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-        if (listen_fd < 0)
-        {
-            printf("System: ERROR Socket Creation Failed\n");
-            continue;
-        }
-
-        // allow binding to already in use addresses
-        int socket_opt_ret = setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)); /* set options */
-        if (socket_opt_ret < 0)
-        {
-            printf("System: ERROR Setting Up Socket Option Failed\n");
-            continue;
-        }
-
-        int bind_ret = bind(listen_fd, p->ai_addr, p->ai_addrlen); /* bind to address */
-        if (bind_ret < 0)
-        {
-            printf("System: ERROR Binding Failed\n");
-            continue;
-        }
-
-        if (bind_ret == 0)
-        { /* bind success */
-            break;
-        }
-        else
-        { /* close and go to next one */
-            close(listen_fd);
-        }
-    }
-
-    freeaddrinfo(results); /* release linked list memory */
-    if (p == NULL)
-    { /* unable to bind to any <=> traversed to end */
+        printf("System: Socket Creation Error");
         return -1;
     }
 
-    int listen_ret = listen(listen_fd, MAX_USER_QUEUE); /* start listening */
-    if (listen_ret)
+    if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)))
+    {
+        printf("System: Socket Option Setting Failure\n");
+        return -1;
+    }
+
+    server_address.sin_family = AF_INET; /* IPV4 for now */
+    server_address.sin_port = htons(atoi(port));
+
+    if (inet_pton(AF_INET, host, &server_address.sin_addr) <= 0)
+    {
+        printf("System: Invalid address\n");
+        return -1;
+    }
+
+    if (bind(listen_fd, (SA *)&server_address, address_length) < 0)
+    {
+        printf("System: Could not bind\n");
+        return -1;
+    }
+
+    if (listen(listen_fd, MAX_USER_QUEUE) < 0)
     {
         printf("System: ERROR Listen Failed\n");
         close(listen_fd);
@@ -130,48 +107,41 @@ int create_listen_socket(char *host, char *port)
 }
 
 /*
- * Creates a connection (client) socket to hostname and port. Many thanks to CSAPP Section 11.4.
- * Uses ip independent getaddrinfo to connect.
+ * Creates a connection (client) socket to hostname and port.
  * Be aware, this function is blocking
  * @param Port String for port
  * @returns client_fd file descriptor, or -1 if error
 */
 int create_connect_socket(char *hostname, char *port)
 {
+
     int client_fd = -1;
-    struct addrinfo hints, *results, *p;
+    struct sockaddr_in address = {0};
+    socklen_t address_len = sizeof(struct sockaddr_in);
 
-    bzero(&hints, sizeof(struct addrinfo));
-
-    hints.ai_socktype = SOCK_STREAM; /* tcp */
-    hints.ai_flags = AI_NUMERICSERV | AI_ADDRCONFIG;
-    getaddrinfo(hostname, port, &hints, &results);
-
-    for (p = results; p != NULL; p = p->ai_next)
+    client_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (client_fd == -1)
     {
-        if ((client_fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) < 0)
-        {
-            // failed
-            continue;
-        }
-
-        if (connect(client_fd, p->ai_addr, p->ai_addrlen) != -1) /* no errors in connecting */
-        {
-            break;
-        }
-    }
-
-    freeaddrinfo(results);
-
-    if (p == NULL)
-    {
-        // didnt find a connectable
+        printf("System: Socket Creation Failed\n");
         return -1;
     }
-    else
+
+    address.sin_family = AF_INET;
+    address.sin_port = htons(atoi(port));
+    if (inet_pton(AF_INET, hostname, &address.sin_addr) <= 0)
     {
-        return client_fd;
+        printf("System: Invalid address\n");
+        return -1;
     }
+
+    if (connect(client_fd, (SA *)&address, address_len) != 0)
+    {
+
+        printf("System: Connection Failure\n");
+        return -1;
+    }
+
+    return client_fd;
 }
 
 /*
