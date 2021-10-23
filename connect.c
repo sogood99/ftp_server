@@ -188,23 +188,26 @@ void *handle_client(void *p_connect_fd)
                     }
                     else if (isEqual(request.verb, "stor"))
                     {
+                        printf("here\n");
+                        current_state = Transfer;
+
                         if (current_mode == PASV)
                         {
                             // start sending stuff
                         }
                         else if (current_mode == PORT)
                         {
+                            printf("here\n");
+
                             // start connecting and sending stuff
-                            printf("%s\n", PORT_address);
-                            printf("%s\n", PORT_port);
                             data_fd.port_conn_fd = create_connect_socket(PORT_address, PORT_port);
-                            printf("survived here");
                             FD_SET(data_fd.port_conn_fd, &socket_set);
-                            accept(data_fd.port_conn_fd, &address, &address_length);
+                            printf("here\n");
                         }
                     }
                     else if (isEqual(request.verb, "retr"))
                     {
+                        current_mode = Transfer;
                     }
                     else
                     {
@@ -268,13 +271,16 @@ void *handle_client(void *p_connect_fd)
         else if (data_fd.port_conn_fd != -1 && FD_ISSET(data_fd.port_conn_fd, &ready_set))
         {
             printf("port data ready\n");
-
+            int result;
+            socklen_t result_len = sizeof(result);
             // handle connection/data comming in or out of PORT socket
             if (current_state == Transfer)
             {
                 // process only if tranfer state
-                write(data_fd.port_conn_fd, "hello world\r\n", 14);
-                close_all_fd(&data_fd, &socket_set);
+                printf("should not happen\n");
+
+                // write(data_fd.port_conn_fd, "hello world\r\n", 14);
+                // close_all_fd(&data_fd, &socket_set);
             }
             else
             {
