@@ -13,28 +13,32 @@
  * @returns 0 if there are no strings left and socket closed, 1 if buffer is ready to process, -1 if 
  * there still is things to read, but there is nothing to process in buffer
  */
-int read_buffer(int fd, char* buffer, size_t buffer_size, char* outer_buffer, char** p_last_read){
+int read_buffer(int fd, char *buffer, size_t buffer_size, char *outer_buffer, char **p_last_read)
+{
 
-    char* last_read = *p_last_read;
+    char *last_read = *p_last_read;
 
     // scan outer buffer for \n
-    int index = 0, outer_buffer_size = last_read-outer_buffer;
-    while (index < outer_buffer_size){
-        if (outer_buffer[index] == '\n'){
+    int index = 0, outer_buffer_size = last_read - outer_buffer;
+    while (index < outer_buffer_size)
+    {
+        if (outer_buffer[index] == '\n')
+        {
             break;
         }
-        index ++;
+        index++;
     }
-    if (index < outer_buffer_size){ /* found a \n at outer_buffer[index] */
+    if (index < outer_buffer_size)
+    { /* found a \n at outer_buffer[index] */
 
         // copy outer_buffer[0]...outer_buffer[index] to buffer
-        strncpy(buffer, outer_buffer, index+1);
+        strncpy(buffer, outer_buffer, index + 1);
 
         // move outer_buffer[index+1] .. last_read to outer_buffer[0]... (last_read-outer_buffer - index - 1)
         char temp_buffer[buffer_size];
         bzero(temp_buffer, 0);
 
-        int new_outer_buffer_len = (last_read-outer_buffer - index - 1);
+        int new_outer_buffer_len = (last_read - outer_buffer - index - 1);
         strncpy(temp_buffer, outer_buffer + index + 1, new_outer_buffer_len);
         strncpy(outer_buffer, temp_buffer, buffer_size); /* use buffer_size to clear out outer_buffer in the process */
         *p_last_read = outer_buffer + new_outer_buffer_len;
@@ -45,7 +49,8 @@ int read_buffer(int fd, char* buffer, size_t buffer_size, char* outer_buffer, ch
     size_t bytes_read;
     bytes_read = read(fd, outer_buffer, BUFF_SIZE - (last_read - outer_buffer));
     *p_last_read += bytes_read;
-    if (bytes_read == 0){
+    if (bytes_read == 0)
+    {
         // no \n found and socket closed (read returned 0), this means the outer buffer can be safely discarded
         return 0;
     }
@@ -58,7 +63,8 @@ int read_buffer(int fd, char* buffer, size_t buffer_size, char* outer_buffer, ch
  * @param port String for port
  * @returns listen_fd file descriptor, or -1 if error
 */
-int create_listen_socket(char* host, char* port){
+int create_listen_socket(char *host, char *port)
+{
     struct addrinfo hints, *results, *p; /* hints to fine tune result list */
     int listen_fd, opt = 1;
 
@@ -66,47 +72,56 @@ int create_listen_socket(char* host, char* port){
 
     bzero(&hints, sizeof(struct addrinfo));
 
-    hints.ai_family = AF_INET; /* only IPV-4 for now */
-    hints.ai_socktype = SOL_SOCKET; /* tcp socket */
+    hints.ai_family = AF_INET;                                    /* only IPV-4 for now */
+    hints.ai_socktype = SOL_SOCKET;                               /* tcp socket */
     hints.ai_flags = AI_PASSIVE | AI_ADDRCONFIG | AI_NUMERICSERV; /* intend for bind */
 
     getaddrinfo(host, port, &hints, &results);
 
-    for (p = results; p != NULL; p = p->ai_next){
+    for (p = results; p != NULL; p = p->ai_next)
+    {
         // starts trying them
         listen_fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-        if (listen_fd < 0){
+        if (listen_fd < 0)
+        {
             printf("System: ERROR Socket Creation Failed\n");
             continue;
         }
 
         // allow binding to already in use addresses
         int socket_opt_ret = setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)); /* set options */
-        if (socket_opt_ret < 0){
+        if (socket_opt_ret < 0)
+        {
             printf("System: ERROR Setting Up Socket Option Failed\n");
             continue;
         }
 
         int bind_ret = bind(listen_fd, p->ai_addr, p->ai_addrlen); /* bind to address */
-        if (bind_ret < 0) {
+        if (bind_ret < 0)
+        {
             printf("System: ERROR Binding Failed\n");
             continue;
         }
 
-        if (bind_ret == 0){ /* bind success */
+        if (bind_ret == 0)
+        { /* bind success */
             break;
-        }else{ /* close and go to next one */
+        }
+        else
+        { /* close and go to next one */
             close(listen_fd);
         }
     }
 
     freeaddrinfo(results); /* release linked list memory */
-    if (p == NULL){/* unable to bind to any <=> traversed to end */
+    if (p == NULL)
+    { /* unable to bind to any <=> traversed to end */
         return -1;
     }
 
     int listen_ret = listen(listen_fd, MAX_USER_QUEUE); /* start listening */
-    if (listen_ret){
+    if (listen_ret)
+    {
         printf("System: ERROR Listen Failed\n");
         close(listen_fd);
         return -1;
@@ -119,7 +134,8 @@ int create_listen_socket(char* host, char* port){
  * @param Port String for port
  * @returns conn_fd file descriptor, or -1 if error
 */
-int create_connect_socket(char* hostname, char* port){
+int create_connect_socket(char *hostname, char *port)
+{
     return -1;
 }
 
@@ -127,10 +143,11 @@ int create_connect_socket(char* hostname, char* port){
  * Changes global variable g_current_server_params
  * TODO: take in argc values and produce dir location and port value
  */
-void parse_args(char** argv){
+void parse_args(char **argv)
+{
     strcpy(g_current_server_params.port, DEFAULT_PORT);
 
-    char* path = realpath("/tmp/", NULL);
+    char *path = realpath("/tmp/", NULL);
     strcpy(g_current_server_params.root_directory, path);
 
     free(path); /* specified by realpath */
@@ -138,8 +155,10 @@ void parse_args(char** argv){
 /*
  * Checks if is prefix, returns 1 if true, 0 if false
  */
-int isPrefix(char* string, char* prefix){
-    if (strncmp(prefix, string, strlen(prefix)) == 0){
+int isPrefix(char *string, char *prefix)
+{
+    if (strncmp(prefix, string, strlen(prefix)) == 0)
+    {
         return 1;
     }
     return 0;
@@ -148,11 +167,15 @@ int isPrefix(char* string, char* prefix){
 /*
  * Checks if suffix, returns 1 if true, 0 if false
  */
-int isSuffix(char* string, char* suffix){
+int isSuffix(char *string, char *suffix)
+{
     size_t suffix_len = strlen(suffix), string_len = strlen(string);
-    if (suffix_len > string_len){
+    if (suffix_len > string_len)
+    {
         return 0;
-    }else if (strncmp(string + string_len - suffix_len, suffix, suffix_len) == 0){
+    }
+    else if (strncmp(string + string_len - suffix_len, suffix, suffix_len) == 0)
+    {
         return 1;
     }
     return 0;
@@ -162,8 +185,10 @@ int isSuffix(char* string, char* suffix){
  * Checks if c is an ascii alphabet
  * @returns 1 if true, 0 if false
  */
-int isAlphabet(char c){
-    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')){
+int isAlphabet(char c)
+{
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
+    {
         return 1;
     }
     return 0;
@@ -173,8 +198,10 @@ int isAlphabet(char c){
  * Checks if c is an ascii numeric alphabet
  * @returns 1 if true, 0 if false
  */
-int isNumeric(char c){
-    if (c >= '0' && c <= '9'){
+int isNumeric(char c)
+{
+    if (c >= '0' && c <= '9')
+    {
         return 1;
     }
     return 0;
@@ -183,8 +210,10 @@ int isNumeric(char c){
 /*
  * @returns 1 if string is empty, 0 otherwise
  */
-int isEmpty(char* string){
-    if (string[0] == 0){
+int isEmpty(char *string)
+{
+    if (string[0] == 0)
+    {
         return 1;
     }
     return 0;
@@ -193,8 +222,10 @@ int isEmpty(char* string){
 /*
  * @returns 1 if string_a === string_b
  */
-int isEqual(char* string_a, char* string_b){
-    if (strcmp(string_a, string_b) == 0){
+int isEqual(char *string_a, char *string_b)
+{
+    if (strcmp(string_a, string_b) == 0)
+    {
         return 1;
     }
     return 0;
@@ -204,50 +235,67 @@ int isEqual(char* string_a, char* string_b){
  * TODO, add security measures for when buffer contains verb/param > MAXLEN
  * @returns struct ClientRequest, if in wrong format then ClientRequest has empty strings
  */
-struct ClientRequest parse_request(char* buffer){
+struct ClientRequest parse_request(char *buffer)
+{
     struct ClientRequest request;
     bzero(request.verb, MAXLEN);
     bzero(request.parameter, MAXLEN);
 
     // for security reasons, last char of buffer should == 0
-    if (buffer[BUFF_SIZE-1] != 0){
+    if (buffer[BUFF_SIZE - 1] != 0)
+    {
         // refuse to parse
         printf("Parser: Security Warning, Buffer Overflow, refused to parse command\n");
         return request;
     }
 
     // check suffix
-    if (!isSuffix(buffer, "\015\012")){
+    if (!isSuffix(buffer, "\015\012"))
+    {
         printf("Parser: Client Command Wrong Suffix\n");
         return request;
     }
 
     int verb_length = 0, index = 0;
 
-    while (index < BUFF_SIZE){
-        if (verb_length == 0){
+    while (index < BUFF_SIZE)
+    {
+        if (verb_length == 0)
+        {
             // currently parsing verb
-            if (buffer[index] == ' '){
+            if (buffer[index] == ' ')
+            {
                 // move onto parameter
                 verb_length = index;
-            } else if (buffer[index] == '\015' || buffer[index] == '\012'){
+            }
+            else if (buffer[index] == '\015' || buffer[index] == '\012')
+            {
                 // ended without parameter (fine)
                 return request;
-            } else if (!isAlphabet(buffer[index])){
+            }
+            else if (!isAlphabet(buffer[index]))
+            {
                 // not in correct format, return empty struct
                 printf("Parser: Verb Not All Alphabet\n");
                 bzero(request.verb, MAXLEN);
                 bzero(request.parameter, MAXLEN);
                 return request;
-            }else{
+            }
+            else
+            {
                 request.verb[index] = buffer[index];
             }
-        }else{
+        }
+        else
+        {
             // currently parsing parameter
-            if (buffer[index] == '\015' || buffer[index] == '\012'){
+            if (buffer[index] == '\015' || buffer[index] == '\012')
+            {
                 return request;
-            }else{
-                request.parameter[index-verb_length-1] = buffer[index];
+            }
+            else
+            {
+                request.parameter[index - verb_length - 1] = buffer[index];
             }
         }
         index++;
@@ -264,7 +312,8 @@ struct ClientRequest parse_request(char* buffer){
  * Initialize data connection file descriptors
  * @param p_data_fd pointer to file descriptor fd
  */
-void init_dataconn_fd(struct DataConnFd* p_data_fd){
+void init_dataconn_fd(struct DataConnFd *p_data_fd)
+{
     p_data_fd->pasv_conn_fd = -1;
     p_data_fd->pasv_listen_fd = -1;
     p_data_fd->port_conn_fd = -1;
@@ -276,71 +325,96 @@ void init_dataconn_fd(struct DataConnFd* p_data_fd){
  * @param buffer string of size BUFFSIZE to parse
  * @returns parsed address and port, is empty if parse error
  */
-struct AddressPort parse_address_port(char* buffer){
+struct AddressPort parse_address_port(char *buffer)
+{
     struct AddressPort client_in;
     bzero(client_in.address, MAXLEN);
     bzero(client_in.port, MAXLEN);
 
-    if (buffer[BUFF_SIZE-1] != 0){
+    if (buffer[BUFF_SIZE - 1] != 0)
+    {
         // for security reasons
         return client_in;
     }
 
     int index = 0, comma_count = 0, port_num = 0;
     int incorrect_format = 0;
-    while (index < BUFF_SIZE){
-        if (buffer[index] == 0){
+    while (index < BUFF_SIZE)
+    {
+        if (buffer[index] == 0)
+        {
             // end of string
             break;
         }
-        if (comma_count <= 3){
+        if (comma_count <= 3)
+        {
             // still processing address
-            if (buffer[index] == ','){
-                if (index == 0 || buffer[index-1] == ','){
+            if (buffer[index] == ',')
+            {
+                if (index == 0 || buffer[index - 1] == ',')
+                {
                     // must have value between ,
                     incorrect_format = 1;
                     break;
                 }
-                if (comma_count != 3){
+                if (comma_count != 3)
+                {
                     // dont add in last comma
                     client_in.address[index] = '.';
                 }
-                comma_count ++;
-            }else if (isNumeric(buffer[index])){
+                comma_count++;
+            }
+            else if (isNumeric(buffer[index]))
+            {
                 client_in.address[index] = buffer[index];
-            }else{
+            }
+            else
+            {
                 incorrect_format = 1;
                 break;
             }
-            index ++;
-        }else if (comma_count <= 5){
+            index++;
+        }
+        else if (comma_count <= 5)
+        {
             // processing port
-            if (buffer[index] == ','){
-                if (buffer[index-1] == ','){
+            if (buffer[index] == ',')
+            {
+                if (buffer[index - 1] == ',')
+                {
                     // must have value between ,
                     incorrect_format = 1;
                     break;
                 }
                 port_num *= 256;
-                comma_count ++;
-            }else if (isNumeric(buffer[index])){
-                port_num += buffer[index]-'0';
-            }else{
+                comma_count++;
+            }
+            else if (isNumeric(buffer[index]))
+            {
+                port_num += buffer[index] - '0';
+            }
+            else
+            {
                 incorrect_format = 1;
                 break;
             }
             index++;
-        }else{
+        }
+        else
+        {
             // too many commas
             incorrect_format = 1;
             break;
         }
     }
-    if (incorrect_format || comma_count != 5 || (index > 0 && buffer[index-1] == ',')){ /* cannot end in comma */
+    if (incorrect_format || comma_count != 5 || (index > 0 && buffer[index - 1] == ','))
+    { /* cannot end in comma */
         printf("Parser: Parameter not in correct format\n");
         bzero(client_in.address, MAXLEN);
         bzero(client_in.port, MAXLEN);
-    }else{
+    }
+    else
+    {
         sprintf(client_in.port, "%d", port_num);
     }
     return client_in;
@@ -353,49 +427,64 @@ struct AddressPort parse_address_port(char* buffer){
  * @param ftp_output where to output
  * @returns string of address and port in ftp standards
  */
-void to_ftp_address_port(struct AddressPort ap, char* ftp_output){
+void to_ftp_address_port(struct AddressPort ap, char *ftp_output)
+{
     int index = 0, port_num = 0, pindex = 0;
-    while (index < BUFF_SIZE){
-        if (ap.address[index] == 0){
+    while (index < BUFF_SIZE) /* transfer address in ap to ftp_output*/
+    {
+        if (ap.address[index] == 0)
+        {
             break;
-        } else if (ap.address[index] == '.'){
+        }
+        else if (ap.address[index] == '.')
+        {
             ftp_output[index] = ',';
-        }else{
+        }
+        else
+        {
             ftp_output[index] = ap.address[index];
         }
-        index ++;
+        index++;
     }
     ftp_output[index] = ',';
-    index ++;
+    index++;
 
     port_num = atoi(ap.port);
 
     char p1[MAXLEN], p2[MAXLEN];
-    bzero(p1,MAXLEN);
-    bzero(p2,MAXLEN);
+    bzero(p1, MAXLEN);
+    bzero(p2, MAXLEN);
 
-    sprintf(p1, "%d", port_num/256);
-    sprintf(p2, "%d", port_num%256);
-    
-    while (pindex < MAXLEN){
-        if (p1[pindex] == 0){
+    sprintf(p1, "%d", port_num / 256);
+    sprintf(p2, "%d", port_num % 256);
+
+    while (pindex < MAXLEN)
+    {
+        if (p1[pindex] == 0)
+        {
             break;
-        }else{
+        }
+        else
+        {
             ftp_output[index] = p1[pindex];
         }
-        index ++;
-        pindex ++;
+        index++;
+        pindex++;
     }
     ftp_output[index] = ',';
-    index ++;
+    index++;
     pindex = 0;
-    while (pindex < MAXLEN){
-        if (p2[pindex] == 0){
+    while (pindex < MAXLEN)
+    {
+        if (p2[pindex] == 0)
+        {
             break;
-        }else{
+        }
+        else
+        {
             ftp_output[index] = p2[pindex];
         }
-        index ++;
-        pindex ++;
+        index++;
+        pindex++;
     }
 }
