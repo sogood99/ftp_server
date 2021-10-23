@@ -12,6 +12,7 @@
 #include <sys/select.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #define BUFF_SIZE 1024
 #define DEFAULT_IP "127.0.0.1"

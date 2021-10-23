@@ -492,7 +492,7 @@ enum ClientState process_idle_mode(struct ClientRequest request, struct DataConn
         absolute_path[MAXLEN] = 0; // safety
 
         int resp = get_abspath(request.parameter, absolute_path);
-        if (resp == 0)
+        if (resp == 0) /* seems good, send file */
         {
             // send file by creating another thread
 
@@ -535,7 +535,52 @@ enum ClientState process_idle_mode(struct ClientRequest request, struct DataConn
  */
 void *send_file(void *p_params)
 {
-    struct DataConnParam *p_data_params = p_params;
+    struct DataConnParams *p_data_params = p_params;
+    int connect_fd = p_data_params->conn_fd;
+    int data_transfer_fd = -1;
+    if (p_data_params->requested_mode == PORT)
+    {
+        // create a connection
+        data_transfer_fd = create_connect_socket(p_data_params->client_address,
+                                                 p_data_params->client_port);
+        if (data_transfer_fd == -1)
+        {
+            char *resp_msg = "425 Could not establish a connection.\015\012";
+            write(connect_fd, resp_msg, strlen(resp_msg));
+            return NULL;
+        }
+        p_data_params->p_data_fd->port_conn_fd = data_transfer_fd;
+    }
+    else if (p_data_params->requested_mode == PASV)
+    {
+        data_transfer_fd = p_data_params->p_data_fd->pasv_conn_fd;
+    }
+    else
+    {
+        printf("Send File: Unknown Transfer Mode");
+        return NULL;
+    }
 
+    char *buffer[BUFF_SIZE];
+    bzero(buffer, BUFF_SIZE);
+    int file_fd = open(p_data_params->file_path, O_RDONLY);
+    if (file_fd == -1) /* open error */
+    {
+        char *resp_msg = "451 Could not read from disk.\015\012";
+        write(connect_fd, resp_msg, strlen(resp_msg));
+    }
+    while (read(file_fd, buffer, BUFF_SIZE) > 0)
+    {
+
+        if (write(data_transfer_fd, buffer, BUFF_SIZE) == -1)
+        {
+            char *resp_msg = "426 Connection Broken.\015\012";
+            write(connect_fd, resp_msg, strlen(resp_msg));
+        }
+        bzero(buffer, BUFF_SIZE);
+    }
+    char *resp_msg = "226 Transfer Success.\015\012";
+    write(connect_fd, resp_msg, strlen(resp_msg));
+    close_all_fd(p_data_params->p_data_fd);
     return NULL;
 }
