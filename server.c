@@ -13,7 +13,7 @@ void run_server()
     socklen_t server_length, client_length = sizeof(struct sockaddr_storage);
     char hostname_str[MAXLEN], port_str[MAXLEN]; /* used for both server and client */
 
-    listen_fd = create_listen_socket("0.0.0.0", g_current_server_params.port); /* creates a listening socket */
+    listen_fd = create_listen_socket(NULL, g_current_server_params.port); /* creates a listening socket */
     if (listen_fd < 0)
     {
         exit(EXIT_FAILURE);
