@@ -337,7 +337,7 @@ struct AddressPort parse_address_port(char *buffer)
         return client_in;
     }
 
-    int index = 0, comma_count = 0, port_num = 0;
+    int index = 0, comma_count = 0, port_num_1 = 0, port_num_2 = 0;
     int incorrect_format = 0;
     while (index < BUFF_SIZE)
     {
@@ -386,12 +386,21 @@ struct AddressPort parse_address_port(char *buffer)
                     incorrect_format = 1;
                     break;
                 }
-                port_num *= 256;
                 comma_count++;
             }
             else if (isNumeric(buffer[index]))
             {
-                port_num += buffer[index] - '0';
+                if (comma_count == 4)
+                {
+                    port_num_1 *= 10;
+                    port_num_1 += buffer[index] - '0';
+                }
+                else
+                {
+                    // on second part of port
+                    port_num_2 *= 10;
+                    port_num_2 += buffer[index] - '0';
+                }
             }
             else
             {
@@ -415,7 +424,7 @@ struct AddressPort parse_address_port(char *buffer)
     }
     else
     {
-        sprintf(client_in.port, "%d", port_num);
+        sprintf(client_in.port, "%d", port_num_1 * 256 + port_num_2);
     }
     return client_in;
 }
@@ -498,32 +507,38 @@ void close_all_fd(struct DataConnFd *p_data_fd)
     if (p_data_fd->pasv_conn_fd != -1)
     {
         close(p_data_fd->pasv_conn_fd);
+        p_data_fd->pasv_conn_fd = -1;
     }
     if (p_data_fd->pasv_listen_fd != -1)
     {
         close(p_data_fd->pasv_listen_fd);
+        p_data_fd->pasv_listen_fd = -1;
     }
     if (p_data_fd->port_conn_fd != -1)
     {
         close(p_data_fd->port_conn_fd);
+        p_data_fd->port_conn_fd = -1;
     }
 }
 
 /*
- * Shutdown all fd, similar to close_all_fd, use when unsure if somthing is using the fd
+ * Shutdown all fd, similar to close_all_fd, use when unsure if some thread is using the fd
  */
-void close_all_fd(struct DataConnFd *p_data_fd)
+void shutdown_all_fd(struct DataConnFd *p_data_fd)
 {
     if (p_data_fd->pasv_conn_fd != -1)
     {
         shutdown(p_data_fd->pasv_conn_fd, SHUT_RD);
+        p_data_fd->pasv_conn_fd = -1;
     }
     if (p_data_fd->pasv_listen_fd != -1)
     {
         shutdown(p_data_fd->pasv_listen_fd, SHUT_RD);
+        p_data_fd->pasv_listen_fd = -1;
     }
     if (p_data_fd->port_conn_fd != -1)
     {
         shutdown(p_data_fd->port_conn_fd, SHUT_RD);
+        p_data_fd->port_conn_fd = -1;
     }
 }

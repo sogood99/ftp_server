@@ -25,10 +25,16 @@ void *handle_client(void *p_connect_fd)
     char current_password[MAXLEN] = {0};
 
     // for selectmode state
-    enum DataConnMode *p_data_mode = malloc(sizeof(enum DataConnMode));
-    *p_data_mode = NOTSET;
     struct DataConnFd *p_data_fd = malloc(sizeof(struct DataConnFd));
     init_dataconn_fd(p_data_fd);
+
+    // initialize p_params
+    struct DataConnParams *p_params = malloc(sizeof(struct DataConnParams));
+    p_params->conn_fd = connect_fd;
+    p_params->requested_mode = NOTSET;
+    p_params->p_data_fd = p_data_fd;
+    bzero(p_params->client_address, MAXLEN);
+    bzero(p_params->client_port, MAXLEN);
 
     char *hello_msg = "220 FTP server ready\015\012";
     char *unknown_format_msg = "500 Unknown Request Format\015\012";
@@ -61,10 +67,10 @@ void *handle_client(void *p_connect_fd)
                 current_state = process_login(request_command, connect_fd, current_username, current_password);
                 break;
             case SelectMode:
-                current_state = process_select_mode(request_command, connect_fd, p_data_mode, p_data_fd);
+                current_state = process_select_mode(request_command, p_params);
                 break;
             case Idle:
-                current_state = process_idle_mode(request_command, connect_fd, p_data_mode, p_data_fd);
+                current_state = process_idle_mode(request_command, p_params);
                 break;
             default:
                 printf("Connector: Warning, switch statement should include all the states\n");
@@ -81,10 +87,11 @@ void *handle_client(void *p_connect_fd)
     }
 
     // ends connection
+    close_all_fd(p_data_fd);
     printf("Connection Closed\n");
     close(connect_fd);
-    free(p_data_mode);
     free(p_data_fd);
+    free(p_params);
     return NULL;
 }
 
@@ -177,9 +184,9 @@ enum ClientState process_login(struct ClientRequest request, int connect_fd, cha
  * @param p_transfer_mode_lock mutex lock shared by handle_client
  * @returns Next state
  */
-enum ClientState process_select_mode(struct ClientRequest request, int connect_fd, enum DataConnMode *p_current_mode,
-                                     struct DataConnFd *p_data_fd)
+enum ClientState process_select_mode(struct ClientRequest request, struct DataConnParams *p_params)
 {
+    int connect_fd = p_params->conn_fd;
 
     if (isEqual(request.verb, "TYPE"))
     {
@@ -207,17 +214,15 @@ enum ClientState process_select_mode(struct ClientRequest request, int connect_f
         else
         {
             // create struct to pass in parameters
-            *p_current_mode = PORT;
 
-            struct DataConnParams params;
-            params.conn_fd = connect_fd;
-            params.data_fd = p_data_fd;
-            params.requested_mode = p_current_mode;
-            strcpy(params.client_address, client_ap.address);
-            strcpy(params.client_port, client_ap.port);
+            p_params->requested_mode = PORT;
+            strcpy(p_params->client_address, client_ap.address);
+            strcpy(p_params->client_port, client_ap.port);
 
-            pthread_t conn_thread;
-            pthread_create(&conn_thread, NULL, handle_data_transfer, &params);
+            char resp_msg[3 * MAXLEN];
+            sprintf(resp_msg, "200 PORT Mode Established With %s:%s.\015\012", client_ap.address,
+                    client_ap.port);
+            write(connect_fd, resp_msg, strlen(resp_msg));
             return Idle;
         }
     }
@@ -232,15 +237,10 @@ enum ClientState process_select_mode(struct ClientRequest request, int connect_f
         else
         {
             // create struct to pass in parameters
-            *p_current_mode = PASV;
-
-            struct DataConnParams params;
-            params.conn_fd = connect_fd;
-            params.data_fd = p_data_fd;
-            params.requested_mode = p_current_mode;
+            p_params->requested_mode = PASV;
 
             pthread_t conn_thread;
-            pthread_create(&conn_thread, NULL, handle_data_transfer, &params);
+            pthread_create(&conn_thread, NULL, handle_data_transfer, p_params);
             return Idle;
         }
     }
@@ -265,14 +265,12 @@ enum ClientState process_select_mode(struct ClientRequest request, int connect_f
  */
 void *handle_data_transfer(void *p_params)
 {
-    // get the input parameters out
-    struct DataConnParams *p_data_params = p_params;
-    int connect_fd = p_data_params->conn_fd;
-    struct DataConnFd *p_data_fd = p_data_params->data_fd;
-    char *client_address = p_data_params->client_address;
-    char *client_port = p_data_params->client_port;
+    struct DataConnParams *p_data_params = p_params; /* for typing purposes */
 
-    enum DataConnMode user_request_mode = *(p_data_params->requested_mode);
+    // get parameters out
+    int connect_fd = p_data_params->conn_fd;
+    struct DataConnFd *p_data_fd = p_data_params->p_data_fd;
+    enum DataConnMode user_request_mode = p_data_params->requested_mode;
 
     if (user_request_mode == PASV)
     {
@@ -327,19 +325,16 @@ int handle_PASV_mode(int connect_fd, struct DataConnFd *p_data_fd)
     bzero(ftp_address, BUFF_SIZE);
 
     // first send human readable format
-    write(connect_fd, "227-PASV address is ", 20);
-    write(connect_fd, client_ap.address, strlen(client_ap.address));
-    write(connect_fd, ":", 1);
-    write(connect_fd, client_ap.port, strlen(client_ap.port));
-    write(connect_fd, "\015\012", 2);
+    char resp_msg[BUFF_SIZE + MAXLEN];
+    sprintf(resp_msg, "227-PASV address is %s:%s\015\012", client_ap.address, client_ap.port);
+    write(connect_fd, resp_msg, strlen(resp_msg));
 
-    write(connect_fd, "227 =", 5);
-
+    // ftp specified address
     to_ftp_address_port(client_ap, ftp_address); /* host port string in the format of ftp */
-    write(connect_fd, ftp_address, strlen(ftp_address));
-    write(connect_fd, "\015\012", 2);
+    sprintf(resp_msg, "227 =%s\015\012", ftp_address);
+    write(connect_fd, resp_msg, strlen(resp_msg));
 
-    // finished sending port, no longer need address information
+    // finished sending port, no longer need address information, clear for reuse
     bzero(&client_address, client_length);
 
     int pasv_conn_fd;
@@ -368,23 +363,30 @@ int handle_PORT_mode(int connect_fd, struct DataConnFd *p_data_fd, char *client_
 
 /*
  * Process commands in Idle state
- * @param request the command that user typed in
- * @param connect_fd the file descriptor of the socket
- * @param p_data_transfer_mode points to the DataConnMode shared by handle_client
- * @param p_transfer_mode_lock mutex lock shared by handle_client
+ * @param request the command that user typed in 
+ * @param p_params->connect_fd the file descriptor of the socket
+ * @param p_params->requested_mode the to the DataConnMode requested by user
+ * @param p_params->data_fd file descriptors to pass back the different sockets
  * @returns Next state
  */
-enum ClientState process_idle_mode(struct ClientRequest request, int connect_fd, enum DataConnMode *p_current_mode,
-                                   struct DataConnFd *p_data_fd)
+enum ClientState process_idle_mode(struct ClientRequest request, struct DataConnParams *p_params)
 {
+    int connect_fd = p_params->conn_fd;
+    struct DataConnFd *p_data_fd = p_params->p_data_fd;
 
     if (isEqual(request.verb, "CLOSE"))
     {
+        // self created command to test the system
         // safe to close since all of the sockets are idle
         close_all_fd(p_data_fd);
+        char *resp_msg = "200 Successfully Closed All Connections\015\012";
+        write(connect_fd, resp_msg, strlen(resp_msg));
+        return SelectMode;
     }
     else if (isEqual(request.verb, "PORT"))
     {
+        close_all_fd(p_data_fd); /* close the rest down and clear */
+        // the same as in selectmode state
         struct AddressPort client_ap = parse_address_port(request.parameter);
         if (isEmpty(client_ap.address))
         {
@@ -393,23 +395,24 @@ enum ClientState process_idle_mode(struct ClientRequest request, int connect_fd,
         }
         else
         {
-            // create struct to pass in parameters
-            *p_current_mode = PORT;
+            p_params->requested_mode = PORT;
 
-            struct DataConnParams params;
-            params.conn_fd = connect_fd;
-            params.data_fd = p_data_fd;
-            params.requested_mode = p_current_mode;
-            strcpy(params.client_address, client_ap.address);
-            strcpy(params.client_port, client_ap.port);
+            bzero(p_params->client_address, MAXLEN);
+            bzero(p_params->client_port, MAXLEN);
+            strcpy(p_params->client_address, client_ap.address);
+            strcpy(p_params->client_port, client_ap.port);
 
-            pthread_t conn_thread;
-            pthread_create(&conn_thread, NULL, handle_data_transfer, &params);
+            char resp_msg[3 * MAXLEN];
+            sprintf(resp_msg, "200 PORT Mode Established With %s:%s.\015\012", client_ap.address,
+                    client_ap.port);
+            write(connect_fd, resp_msg, strlen(resp_msg));
+
             return Idle;
         }
     }
     else if (isEqual(request.verb, "PASV"))
     {
+        close_all_fd(p_data_fd); /* close the rest down and clear */
         if (!isEmpty(request.parameter))
         {
             // PASV mode should have empty parameter
@@ -419,20 +422,16 @@ enum ClientState process_idle_mode(struct ClientRequest request, int connect_fd,
         else
         {
             // create struct to pass in parameters
-            *p_current_mode = PASV;
-
-            struct DataConnParams params;
-            params.conn_fd = connect_fd;
-            params.data_fd = p_data_fd;
-            params.requested_mode = p_current_mode;
+            p_params->requested_mode = PASV;
 
             pthread_t conn_thread;
-            pthread_create(&conn_thread, NULL, handle_data_transfer, &params);
+            pthread_create(&conn_thread, NULL, handle_data_transfer, p_params);
             return Idle;
         }
     }
     else if (isEqual(request.verb, "QUIT"))
     {
+        close_all_fd(p_data_fd);
         char *resp_msg = "221 Closing Connection, Goodbyte and goodbit.\015\012";
         write(connect_fd, resp_msg, strlen(resp_msg));
         return Exit;
