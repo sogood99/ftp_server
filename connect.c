@@ -47,6 +47,7 @@ void *handle_client(void *p_connect_fd)
             continue;
         }
         struct ClientRequest request_command = parse_request(buffer);
+
         if (isEmpty(request_command.verb))
         { /* check command validity */
             // empty => parse error
@@ -70,7 +71,10 @@ void *handle_client(void *p_connect_fd)
                 current_state = process_select_mode(request_command, p_params);
                 break;
             case Idle:
-                current_state = process_idle_mode(request_command, p_params);
+                current_state = process_idle(request_command, p_params);
+                break;
+            case Transfer:
+                current_state = process_transfer(request_command, p_params);
                 break;
             default:
                 printf("Connector: Warning, switch statement should include all the states\n");
@@ -379,55 +383,13 @@ int handle_PORT_mode(int connect_fd, struct DataConnFd *p_data_fd, char *client_
  * @param p_params->data_fd file descriptors to pass back the different sockets
  * @returns Next state
  */
-enum ClientState process_idle_mode(struct ClientRequest request, struct DataConnParams *p_params)
+enum ClientState process_idle(struct ClientRequest request, struct DataConnParams *p_params)
 {
     int connect_fd = p_params->conn_fd;
     struct DataConnFd *p_data_fd = p_params->p_data_fd;
     enum DataConnMode current_mode = p_params->requested_mode;
 
-    if (isEqual(request.verb, "CLOSE"))
-    {
-        // self created command to test the system
-        // safe to close since all of the sockets are idle
-        close_all_fd(p_data_fd);
-        p_params->requested_mode = NOTSET;
-        char *resp_msg = "200 Successfully Closed All Connections\015\012";
-        write(connect_fd, resp_msg, strlen(resp_msg));
-        return SelectMode;
-    }
-    else if (isEqual(request.verb, "CONNECT"))
-    {
-        // self created command to test the system
-        if (p_params->requested_mode == PORT)
-        {
-            pthread_t conn_thread;
-            pthread_create(&conn_thread, NULL, handle_data_transfer, p_params);
-
-            char *resp_msg = "200 Establishing Connection\015\012";
-            write(connect_fd, resp_msg, strlen(resp_msg));
-            return Idle;
-        }
-        else if (p_params->requested_mode == PASV)
-        {
-            if (p_params->p_data_fd->port_conn_fd != -1)
-            {
-                char *resp_msg = "200 PASV Connected\015\012";
-                write(connect_fd, resp_msg, strlen(resp_msg));
-            }
-            else
-            {
-                char *resp_msg = "425 No PASV Connection Was Established\015\012";
-                write(connect_fd, resp_msg, strlen(resp_msg));
-            }
-            return Idle;
-        }
-        else
-        {
-            printf("Idle: Unknown Combination\n");
-            return SelectMode;
-        }
-    }
-    else if (isEqual(request.verb, "PORT"))
+    if (isEqual(request.verb, "PORT"))
     {
         close_all_fd(p_data_fd); /* close the rest down and clear */
         // the same as in selectmode state
@@ -493,9 +455,12 @@ enum ClientState process_idle_mode(struct ClientRequest request, struct DataConn
         if (resp == 0) /* seems good, send file */
         {
             // send file by creating another thread
-            pthread_t thread;
-            pthread_create(&thread, NULL, send_file, p_params);
-            return Transfer;
+            // pthread_t thread;
+            // pthread_create(&thread, NULL, send_file, p_params);
+
+            send_file(p_params); /* currently blocking */
+            // return Transfer;
+            return SelectMode;
         }
         else if (resp == -1 || resp == 1)
         {
@@ -512,13 +477,10 @@ enum ClientState process_idle_mode(struct ClientRequest request, struct DataConn
         p_params->requested_mode = NOTSET;
         return SelectMode;
     }
-    else if (isEqual(request.verb, "STORE")) /* pretty much the same as RETR */
+    else if (isEqual(request.verb, "STOR")) /* pretty much the same as RETR */
     {
-
         if (current_mode == PASV && p_data_fd->pasv_conn_fd == -1) /* tcp not connected yet */
         {
-            printf("here2\n");
-
             char *resp_msg = "425 Connection Was Not Established.\015\012";
             write(connect_fd, resp_msg, strlen(resp_msg));
 
@@ -535,11 +497,12 @@ enum ClientState process_idle_mode(struct ClientRequest request, struct DataConn
 
         if (resp == 0) /* seems good, send file */
         {
+            // pthread_t thread;
+            // pthread_create(&thread, NULL, store_file, p_params);
 
-            // store file by creating another thread
-            pthread_t thread;
-            pthread_create(&thread, NULL, store_file, p_params);
-            return Transfer;
+            // blocking calls
+            store_file(p_params); /* for some reason creating another thread to store causes bugs */
+            return SelectMode;
         }
         else if (resp == -1 || resp == 1)
         {
@@ -626,13 +589,13 @@ void *send_file(void *p_params)
     close_all_fd(p_data_params->p_data_fd);
     return NULL;
 }
+
 /*
  * Sends file through client's socket
  * @param p_params of type DataConnParam*
  */
 void *store_file(void *p_params)
 {
-
     struct DataConnParams *p_data_params = p_params;
     int connect_fd = p_data_params->conn_fd;
     int data_transfer_fd = -1;
@@ -671,6 +634,12 @@ void *store_file(void *p_params)
     }
     fclose(p_file);                                /* clear out file */
     p_file = fopen(p_data_params->file_path, "a"); /* open in append mode */
+    if (p_file == NULL)
+    {
+        char *resp_msg = "451 Could not read from disk.\015\012";
+        write(connect_fd, resp_msg, strlen(resp_msg));
+        return NULL;
+    }
     int read_len;
     while ((read_len = read(data_transfer_fd, buffer, BUFF_SIZE)) > 0)
     {
@@ -682,4 +651,15 @@ void *store_file(void *p_params)
     write(connect_fd, resp_msg, strlen(resp_msg));
     close_all_fd(p_data_params->p_data_fd);
     return NULL;
+}
+
+/*
+ * Process commands in Transfer state, also check if transfer is success (go back go selectmode)
+ * @param request the command that user typed in 
+ * @returns Next state
+ */
+enum ClientState process_transfer(struct ClientRequest request, struct DataConnParams *p_params)
+{
+    // currently not in use since transfer is thread blocking
+    return Idle;
 }

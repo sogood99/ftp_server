@@ -36,7 +36,7 @@ int read_buffer(int fd, char *buffer, size_t buffer_size, char *outer_buffer, ch
 
         // move outer_buffer[index+1] .. last_read to outer_buffer[0]... (last_read-outer_buffer - index - 1)
         char temp_buffer[buffer_size];
-        bzero(temp_buffer, 0);
+        bzero(temp_buffer, buffer_size);
 
         int new_outer_buffer_len = (last_read - outer_buffer - index - 1);
         strncpy(temp_buffer, outer_buffer + index + 1, new_outer_buffer_len);
