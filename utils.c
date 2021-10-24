@@ -540,11 +540,12 @@ void to_ftp_address_port(struct AddressPort ap, char *ftp_output)
 /*
  * Check that path exists and output the absolute path to the input
  * Checks that the input doesnt have ../ as to not go up the root directory
- * @params should_create if file doesnt exists, should the function create the file, 1 == create?
+ * @param cwd Current working directory
+ * @param should_create if file doesnt exists, should the function create the file, 1 == create?
  * @returns 1 if path doesnt exists, 2 if path has two dots, -1 if not in correct format/error 
  * 0 if all is well
  */
-int get_abspath(char *input_path, char *output_path, int should_create)
+int get_abspath(char *input_path, char *output_path, char *cwd, int should_create)
 {
     // scans path while copying and making sure the path is valid
     char temp_concat[MAXLEN]; // temp variable to store the concated string
@@ -552,16 +553,15 @@ int get_abspath(char *input_path, char *output_path, int should_create)
     bzero(temp_concat, MAXLEN);
     bzero(output_path, MAXLEN);
     int index = 0, period_count = 0, root_length = 0;
-    char *root_dir = g_current_server_params.root_directory;
     while (index < MAXLEN)
     {
-        if (root_dir[index] == 0)
+        if (cwd[index] == 0)
         {
             break;
         }
         else
         {
-            temp_concat[index] = root_dir[index];
+            temp_concat[index] = cwd[index];
             index++;
             root_length++;
         }

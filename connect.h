@@ -13,6 +13,7 @@ struct DataConnParams
     char file_path[MAXLEN + 1];       /* Path used to send or recieve file */
     char client_address[MAXLEN + 1];  /* for PORT */
     char client_port[MAXLEN + 1];     /* for PORT */
+    char *current_absdir;             /* current absolute working directory */
 };
 
 void *handle_client(void *p_connect_fd);    /* takes in the pointer to fd index */

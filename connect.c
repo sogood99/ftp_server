@@ -19,8 +19,10 @@ void *handle_client(void *p_connect_fd)
     /* -------- FTP Code Begins -------- */
 
     enum ClientState current_state = Login; /* relative to root state */
-    char current_working_dir[MAXLEN];
+    char current_working_dir[MAXLEN], current_working_absdir[MAXLEN];
     bzero(current_working_dir, MAXLEN);
+    bzero(current_working_absdir, MAXLEN);
+    strcpy(current_working_absdir, g_current_server_params.root_directory);
 
     // for login state
     char current_username[MAXLEN] = {0};
@@ -35,6 +37,7 @@ void *handle_client(void *p_connect_fd)
     p_params->conn_fd = connect_fd;
     p_params->requested_mode = NOTSET;
     p_params->p_data_fd = p_data_fd;
+    p_params->current_absdir = current_working_absdir;
     bzero(p_params->client_address, MAXLEN);
     bzero(p_params->client_port, MAXLEN);
 
@@ -74,14 +77,18 @@ void *handle_client(void *p_connect_fd)
             char temp_output_path[MAXLEN];
             char resp_msg[3 * MAXLEN];
 
-            if (get_abspath(request_command.parameter, temp_output_path, 0) != 0)
+            if (get_abspath(request_command.parameter, temp_output_path,
+                            g_current_server_params.root_directory, 0) != 0)
             {
+                // if path exists then print out
                 sprintf(resp_msg, "550 %s: No such file or directory.\r\n", request_command.parameter);
                 write(connect_fd, resp_msg, strlen(resp_msg));
             }
             else
             {
+                // if path exists then print out
                 strcpy(current_working_dir, request_command.parameter);
+                strcpy(current_working_absdir, temp_output_path);
                 sprintf(resp_msg, "250 Okay.\r\n");
                 write(connect_fd, resp_msg, strlen(resp_msg));
             }
@@ -478,7 +485,7 @@ enum ClientState process_idle(struct ClientRequest request, struct DataConnParam
         char *absolute_path = p_params->file_path;
         absolute_path[MAXLEN] = 0; // safety
 
-        int resp = get_abspath(request.parameter, absolute_path, 0);
+        int resp = get_abspath(request.parameter, absolute_path, p_params->current_absdir, 0);
         if (resp == 0) /* seems good, send file */
         {
             // send file by creating another thread
@@ -520,7 +527,7 @@ enum ClientState process_idle(struct ClientRequest request, struct DataConnParam
         char *absolute_path = p_params->file_path;
         absolute_path[MAXLEN] = 0; // safety
 
-        int resp = get_abspath(request.parameter, absolute_path, 1); /* create file if doesnt exist */
+        int resp = get_abspath(request.parameter, absolute_path, p_params->current_absdir, 1); /* create file if doesnt exist */
 
         if (resp == 0) /* seems good, send file */
         {

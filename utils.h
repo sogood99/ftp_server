@@ -80,6 +80,6 @@ int isEqual(char *string_a, char *string_b);
 void init_dataconn_fd(struct DataConnFd *p_data_fd);
 struct ClientRequest parse_request(char *buffer);
 struct AddressPort parse_address_port(char *buffer);
-int get_abspath(char *input_path, char *output_path, int should_create);
+int get_abspath(char *input_path, char *output_path, char *cwd, int should_create);
 void close_all_fd(struct DataConnFd *p_data_fd);
 #endif
