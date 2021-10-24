@@ -18,7 +18,9 @@ void *handle_client(void *p_connect_fd)
 
     /* -------- FTP Code Begins -------- */
 
-    enum ClientState current_state = Login;
+    enum ClientState current_state = Login; /* relative to root state */
+    char current_working_dir[MAXLEN];
+    bzero(current_working_dir, MAXLEN);
 
     // for login state
     char current_username[MAXLEN] = {0};
@@ -58,6 +60,31 @@ void *handle_client(void *p_connect_fd)
             // support SYST command
             char *resp_msg = "215 UNIX Type: L8\015\012";
             write(connect_fd, resp_msg, strlen(resp_msg));
+        }
+        else if (isEqual(request_command.verb, "PWD") && (current_state != Login))
+        { /* many state command */
+            // support print working directory command
+            char resp_msg[3 * MAXLEN];
+            sprintf(resp_msg, "257 \"%s\".\r\n", current_working_dir);
+            write(connect_fd, resp_msg, strlen(resp_msg));
+        }
+        else if (isEqual(request_command.verb, "CWD") && (current_state != Login))
+        { /* many state command */
+            // support print working directory command
+            char temp_output_path[MAXLEN];
+            char resp_msg[3 * MAXLEN];
+
+            if (get_abspath(request_command.parameter, temp_output_path, 0) != 0)
+            {
+                sprintf(resp_msg, "550 %s: No such file or directory.\r\n", request_command.parameter);
+                write(connect_fd, resp_msg, strlen(resp_msg));
+            }
+            else
+            {
+                strcpy(current_working_dir, request_command.parameter);
+                sprintf(resp_msg, "250 Okay.\r\n");
+                write(connect_fd, resp_msg, strlen(resp_msg));
+            }
         }
         else
         {
